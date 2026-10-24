@@ -4,6 +4,7 @@ import {
   getNextPopProbability,
   getPayoutCents,
   getStep,
+  MAX_PUMPS,
   pumpRound,
   validateBet,
 } from '../engine/PumpEngine.js';
@@ -41,6 +42,7 @@ export class PumpService {
     private readonly seedFactory: (
       roundId: string,
     ) => string = createServerSeed,
+    private readonly options: { disablePopping?: boolean } = {},
   ) {}
 
   getSession(token: string | undefined): {
@@ -88,6 +90,7 @@ export class PumpService {
           )
           .get(playerId) as RoundRow | undefined);
     return {
+      poppingDisabled: this.options.disablePopping ?? false,
       wallet: this.getWallet(playerId),
       round: current ? this.toView(current) : null,
       history: this.getHistory(playerId),
@@ -211,9 +214,15 @@ export class PumpService {
         );
       }
 
+      // Testing may have carried this round past its seeded pop point.
       const outcome =
         action === 'pump'
-          ? pumpRound(round.pumps, round.pop_at_pump)
+          ? pumpRound(
+              round.pumps,
+              this.options.disablePopping
+                ? MAX_PUMPS + 1
+                : Math.max(round.pumps + 1, round.pop_at_pump),
+            )
           : { pumps: round.pumps, status: 'cashed_out' as const };
       const reason: SettlementReason | null =
         outcome.status === 'popped'
@@ -277,7 +286,13 @@ export class PumpService {
         ? getPayoutCents(round.bet_cents, round.pumps)
         : round.payout_cents,
       payoutCents: round.payout_cents,
-      nextPopProbability: active ? getNextPopProbability(round.pumps) : null,
+      nextPopProbability: active
+        ? this.options.disablePopping
+          ? 0
+          : round.pop_at_pump <= round.pumps
+            ? 1
+            : getNextPopProbability(round.pumps)
+        : null,
       serverSeedHash: round.server_seed_hash,
       proof: active
         ? null

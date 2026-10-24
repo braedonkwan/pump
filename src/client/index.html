@@ -3,89 +3,533 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Pump</title>
+    <meta name="theme-color" content="#0c101b" />
+    <meta
+      name="description"
+      content="A little air. A little courage. Take your balloon from the meadow to the stars in Pump, a game played with demo credits."
+    />
+    <link rel="preload" as="image" href="/art/world/meadow.png" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>Pump · To the stars</title>
     <script type="module" src="/main.ts"></script>
   </head>
   <body>
-    <main>
-      <h1>Pump</h1>
-      <p>Demo balance: <strong id="balance">Loading...</strong></p>
+    <svg
+      class="icon-definitions"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <symbol id="icon-arrow" viewBox="0 0 24 24">
+        <path d="M12 19V5m-6 6 6-6 6 6" />
+      </symbol>
+      <symbol id="icon-chevron" viewBox="0 0 24 24">
+        <path d="m9 5 7 7-7 7" />
+      </symbol>
+      <symbol id="icon-shield" viewBox="0 0 24 24">
+        <path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3Z" />
+        <path d="m8 12 3 3 5-6" />
+      </symbol>
+      <symbol id="icon-info" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 11v5m0-9v1" />
+      </symbol>
+      <symbol id="icon-wallet" viewBox="0 0 24 24">
+        <path
+          d="M20 7H5a2 2 0 0 1 0-4h12v4M3 5v14a2 2 0 0 0 2 2h15V7m0 5h-6v5h6m-3-2.5h.01"
+        />
+      </symbol>
+      <symbol id="icon-check" viewBox="0 0 24 24">
+        <path d="m5 12 4 4L19 6" />
+      </symbol>
+      <symbol id="icon-spark" viewBox="0 0 24 24">
+        <path d="m12 2 3 7 7 3-7 3-3 7-3-7-7-3 7-3 3-7Z" />
+      </symbol>
+      <symbol id="icon-wind" viewBox="0 0 24 24">
+        <path
+          d="M3 8h12a3 3 0 1 0-3-3M3 12h16a3 3 0 1 1-3 3M3 16h5a2 2 0 1 1-2 2"
+        />
+      </symbol>
+    </svg>
 
-      <section aria-label="Game">
-        <div class="balloon-area">
-          <div id="balloon" role="img" aria-label="Balloon"></div>
+    <header class="app-header">
+      <a class="brand" href="/" aria-label="Pump home"
+        ><span class="brand-mark" aria-hidden="true"
+          ><svg viewBox="0 0 32 36">
+            <path
+              d="M16 2C9 2 4 7 4 14c0 8 10 15 12 15s12-7 12-15C28 7 23 2 16 2Z"
+            />
+            <path d="m16 28-3 5h6l-3-5Z" /></svg></span
+        ><span>pump<span class="brand-period">.</span></span
+        ><span class="brand-edition">ORIGINALS</span></a
+      >
+      <div class="header-actions">
+        <button class="help-button" id="how-to-button" aria-label="How to play">
+          <svg class="icon"><use href="#icon-info" /></svg
+          ><span>How to play</span>
+        </button>
+        <div class="wallet">
+          <svg class="icon wallet-icon"><use href="#icon-wallet" /></svg>
+          <div>
+            <span class="wallet-label">DEMO BALANCE</span
+            ><strong id="balance">—</strong>
+          </div>
+          <span class="currency-badge">USD</span>
         </div>
-        <p id="round-status">Start a round to play.</p>
+      </div>
+    </header>
 
-        <dl class="game-stats">
-          <div>
-            <dt>Pumps</dt>
-            <dd id="pump-count">0 / 25</dd>
+    <main class="app-main">
+      <div class="page-heading">
+        <div class="game-title">
+          <span class="breadcrumb">ORIGINALS <span>/</span> PUMP</span>
+          <div class="title-line">
+            <h1>Aim a little higher<span>.</span></h1>
+            <span class="live-badge"><i></i> DEMO PLAY</span>
           </div>
-          <div>
-            <dt>Multiplier</dt>
-            <dd id="multiplier">1.00x</dd>
-          </div>
-          <div>
-            <dt>Cash-out payout</dt>
-            <dd id="payout">$0.00</dd>
-          </div>
-          <div>
-            <dt>Next pump pop chance</dt>
-            <dd id="pop-chance">4.0%</dd>
-          </div>
-        </dl>
-
-        <form id="bet-form">
-          <label for="bet">Bet amount (USD)</label>
-          <input
-            id="bet"
-            name="bet"
-            type="text"
-            inputmode="decimal"
-            value="10.00"
-            autocomplete="off"
-            aria-describedby="bet-help"
-            maxlength="8"
-            disabled
-          />
-          <button type="submit" id="start-button" disabled>Start round</button>
-        </form>
-        <p id="bet-help">
-          Bet $0.10 to $1,000.00. A surviving 25th pump cashes out
-          automatically.
-        </p>
-        <div class="round-actions">
-          <button id="pump-button" disabled>Pump</button>
-          <button id="cashout-button" disabled>Cash out</button>
+          <p>A little air. A little courage. A whole new world.</p>
         </div>
-        <p id="message" role="status" aria-live="polite"></p>
-      </section>
+        <div class="game-badges">
+          <span
+            ><svg class="icon"><use href="#icon-shield" /></svg>
+            <span id="rtp-label">97% RTP</span></span
+          ><span>25 pumps to the stars</span>
+        </div>
+      </div>
 
-      <section id="round-proof" aria-labelledby="seed-title" hidden>
-        <h2>Round seed</h2>
-        <p>SHA-256 commitment: <code id="seed-hash"></code></p>
-        <p>Server seed: <code id="server-seed"></code></p>
-      </section>
+      <div class="game-layout">
+        <section class="flight-panel" aria-label="Balloon ascent game">
+          <div
+            class="world-viewport"
+            id="world-scene"
+            data-zone="0"
+            data-status="ready"
+            data-instant="true"
+          >
+            <div class="world-map" id="world-map" aria-hidden="true">
+              <div class="world-backdrops" id="world-backdrops"></div>
+              <div class="world-ambience" id="world-ambience"></div>
+            </div>
+            <div class="scene-shading" aria-hidden="true"></div>
+            <div class="flight-streaks" id="flight-streaks" aria-hidden="true">
+              <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+            </div>
 
-      <section aria-labelledby="history-title">
-        <h2 id="history-title">Last 10 rounds</h2>
-        <table>
-          <thead>
-            <tr>
-              <th scope="col">Outcome</th>
-              <th scope="col">Bet</th>
-              <th scope="col">Multiplier</th>
-              <th scope="col">Payout</th>
-            </tr>
-          </thead>
-          <tbody id="history-body">
-            <tr>
-              <td colspan="4">No completed rounds yet.</td>
-            </tr>
-          </tbody>
-        </table>
+            <div class="scene-topbar">
+              <div class="environment-tag">
+                <span class="environment-icon"
+                  ><svg class="icon"><use href="#icon-wind" /></svg
+                ></span>
+                <div>
+                  <span class="overline">YOUR WORLD</span
+                  ><strong id="environment-name">The meadow</strong>
+                </div>
+              </div>
+              <button
+                class="scene-proof-button"
+                id="fairness-button"
+                aria-label="View round seed details"
+                disabled
+              >
+                <svg class="icon"><use href="#icon-shield" /></svg
+                ><span>Provably fair</span>
+              </button>
+            </div>
+
+            <div class="multiplier-hud">
+              <span class="overline" id="multiplier-label"
+                >READY FOR LIFTOFF</span
+              >
+              <div class="multiplier" id="multiplier">1.00<span>×</span></div>
+              <p id="round-status" aria-live="polite">
+                Your next adventure starts here.
+              </p>
+            </div>
+
+            <div class="balloon-anchor">
+              <div class="balloon-flight" id="balloon-flight">
+                <div class="balloon-bob">
+                  <div
+                    class="balloon-size"
+                    id="balloon"
+                    role="img"
+                    aria-label="Balloon ready for liftoff"
+                  >
+                    <svg
+                      class="balloon-art"
+                      viewBox="0 0 260 370"
+                      aria-hidden="true"
+                    >
+                      <defs>
+                        <radialGradient
+                          id="balloon-fill"
+                          cx="32%"
+                          cy="24%"
+                          r="80%"
+                        >
+                          <stop offset="0" stop-color="#ffc9aa" />
+                          <stop offset=".28" stop-color="#ff9478" />
+                          <stop offset=".6" stop-color="#ff654f" />
+                          <stop offset=".86" stop-color="#e73f49" />
+                          <stop offset="1" stop-color="#b62e4c" />
+                        </radialGradient>
+                        <linearGradient
+                          id="balloon-shine"
+                          x1="0"
+                          y1="0"
+                          x2="1"
+                          y2="1"
+                        >
+                          <stop stop-color="#fff" stop-opacity=".88" />
+                          <stop offset="1" stop-color="#fff" stop-opacity="0" />
+                        </linearGradient>
+                        <linearGradient
+                          id="balloon-rim"
+                          x1="0"
+                          y1="0"
+                          x2="1"
+                          y2="1"
+                        >
+                          <stop stop-color="#ffe5ce" stop-opacity=".7" />
+                          <stop
+                            offset="1"
+                            stop-color="#ff705d"
+                            stop-opacity="0"
+                          />
+                        </linearGradient>
+                      </defs>
+                      <path
+                        class="balloon-string"
+                        d="M130 277C107 298 154 315 130 335S118 359 130 368"
+                        fill="none"
+                        stroke="#fff2e3"
+                        stroke-opacity=".8"
+                        stroke-width="1.6"
+                      />
+                      <path
+                        d="M130 266C111 260 27 202 27 117C27 53 69 17 130 17S233 53 233 117C233 202 149 260 130 266Z"
+                        fill="url(#balloon-fill)"
+                        stroke="url(#balloon-rim)"
+                        stroke-width="1.5"
+                      />
+                      <path
+                        d="M62 112C62 69 86 45 117 43"
+                        fill="none"
+                        stroke="url(#balloon-shine)"
+                        stroke-width="18"
+                        stroke-linecap="round"
+                      />
+                      <ellipse
+                        cx="76"
+                        cy="139"
+                        rx="5"
+                        ry="10"
+                        fill="#fff"
+                        opacity=".2"
+                      />
+                      <path
+                        d="m130 264-11 16q11-5 22 0l-11-16Z"
+                        fill="#cf3c4b"
+                      />
+                      <path
+                        d="m130 111 5 13 14 5-14 5-5 14-5-14-14-5 14-5 5-13Z"
+                        fill="#fff2dc"
+                        opacity=".82"
+                      />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="pump-ripple" id="pump-ripple" aria-hidden="true"></div>
+            <div
+              class="scene-particles"
+              id="scene-particles"
+              aria-hidden="true"
+            ></div>
+
+            <div
+              class="result-banner"
+              id="result-banner"
+              role="status"
+              aria-live="polite"
+              hidden
+            >
+              <span class="result-icon" id="result-icon"
+                ><svg class="icon"><use href="#icon-check" /></svg></span
+              ><span class="overline" id="result-label">PAYOUT SECURED</span
+              ><strong id="result-value">$0.00</strong
+              ><span id="result-caption">A beautiful place to call it.</span>
+            </div>
+
+            <div
+              class="altimeter"
+              id="altimeter"
+              role="progressbar"
+              aria-label="Ascent toward space"
+              aria-valuemin="0"
+              aria-valuemax="25"
+              aria-valuenow="0"
+            >
+              <span class="altimeter-top"
+                ><svg class="icon"><use href="#icon-spark" /></svg
+                ><span>SPACE</span></span
+              >
+              <div class="altimeter-track">
+                <div class="altimeter-fill"></div>
+                <i class="altimeter-tick tick-1"></i
+                ><i class="altimeter-tick tick-2"></i
+                ><i class="altimeter-tick tick-3"></i
+                ><i class="altimeter-tick tick-4"></i
+                ><span class="altimeter-needle"></span>
+              </div>
+              <span class="altimeter-bottom">GROUND</span>
+            </div>
+
+            <div class="scene-bottom">
+              <div class="pump-counter">
+                <span class="counter-dot"></span
+                ><strong id="pump-count">00</strong><span>/ 25 PUMPS</span>
+              </div>
+              <span class="scene-hint" id="scene-hint"
+                >Every great flight starts on the ground.</span
+              ><span class="world-coordinate" id="world-coordinate"
+                >WORLD 01 / 08</span
+              >
+            </div>
+          </div>
+
+          <div class="journey-strip">
+            <div class="journey-topline">
+              <span class="overline">YOUR ASCENT</span
+              ><span id="journey-caption"
+                >The meadow is just the beginning.</span
+              >
+            </div>
+            <div
+              class="journey-segments"
+              id="journey-segments"
+              aria-hidden="true"
+            ></div>
+            <div class="journey-landmarks" aria-hidden="true"></div>
+          </div>
+        </section>
+
+        <aside class="controls-panel" aria-label="Game controls">
+          <div class="controls-heading">
+            <h2>Make your move</h2>
+            <span class="manual-badge"><i></i> MANUAL</span>
+          </div>
+          <form id="bet-form">
+            <label for="bet">Bet amount</label>
+            <div class="bet-field">
+              <span class="bet-currency">$</span
+              ><input
+                id="bet"
+                name="bet"
+                type="text"
+                inputmode="decimal"
+                value="10.00"
+                autocomplete="off"
+                aria-describedby="bet-help"
+                maxlength="8"
+                disabled
+              /><span class="input-currency">USD</span>
+            </div>
+            <p class="field-help" id="bet-help">
+              Min $0.10 <span>·</span> Max $1,000.00
+            </p>
+            <button
+              class="primary-button"
+              type="submit"
+              id="start-button"
+              disabled
+            >
+              <span id="start-label">Start your ascent</span
+              ><svg class="icon"><use href="#icon-arrow" /></svg>
+            </button>
+          </form>
+          <div class="round-actions" id="round-actions" hidden>
+            <button
+              class="primary-button pump-button"
+              id="pump-button"
+              disabled
+            >
+              <span
+                ><span id="pump-label">Pump balloon</span
+                ><small id="next-multiplier">Next 1.01×</small></span
+              ><svg class="icon"><use href="#icon-arrow" /></svg></button
+            ><button class="cashout-button" id="cashout-button" disabled>
+              <span>Cash out</span><strong id="cashout-value">$0.00</strong
+              ><svg class="icon"><use href="#icon-chevron" /></svg>
+            </button>
+          </div>
+          <div class="payout-card">
+            <div class="payout-card-heading">
+              <span class="overline" id="payout-label">POTENTIAL PAYOUT</span
+              ><svg class="icon"><use href="#icon-spark" /></svg>
+            </div>
+            <strong id="payout">$0.00</strong>
+            <div class="payout-card-detail">
+              <span id="stake-caption">Your flight, your call.</span
+              ><span id="net-return"></span>
+            </div>
+          </div>
+          <div class="risk-card">
+            <div class="risk-heading">
+              <span>Next pump pop chance</span
+              ><strong id="pop-chance">4.0%</strong>
+            </div>
+            <div class="risk-track"><div id="risk-fill"></div></div>
+            <div class="risk-scale">
+              <span>Keep an eye on the pressure</span
+              ><svg class="icon"><use href="#icon-info" /></svg>
+            </div>
+          </div>
+          <div class="flight-note">
+            <span class="flight-note-icon"
+              ><svg class="icon"><use href="#icon-wind" /></svg
+            ></span>
+            <p id="flight-note">
+              A new view with every pump. Cash out before the balloon pops to
+              keep your payout.
+            </p>
+          </div>
+          <p class="message" id="message" role="status" aria-live="polite"></p>
+          <button class="reconnect-button" id="reconnect-button" hidden>
+            Reconnect to your flight
+          </button>
+          <div class="controls-footer">
+            <svg class="icon"><use href="#icon-shield" /></svg
+            ><span>Fixed outcome. Verifiable seed.</span>
+          </div>
+        </aside>
+      </div>
+
+      <section class="history-panel" aria-labelledby="history-title">
+        <div class="history-heading">
+          <div>
+            <h2 id="history-title">Your recent flights</h2>
+            <span>The last 10 rounds, right here.</span>
+          </div>
+          <span class="history-live"><i></i> FLIGHT LOG</span>
+        </div>
+        <div class="history-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Round</th>
+                <th scope="col">Outcome</th>
+                <th scope="col">Pumps</th>
+                <th scope="col">Bet</th>
+                <th scope="col">Multiplier</th>
+                <th scope="col">Payout</th>
+              </tr>
+            </thead>
+            <tbody id="history-body">
+              <tr>
+                <td colspan="6" class="empty-history">
+                  <svg class="icon"><use href="#icon-wind" /></svg
+                  ><span>Your first flight is waiting.</span
+                  ><small>Start a round to leave the ground.</small>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </section>
+      <footer class="app-footer">
+        <span
+          ><svg class="icon"><use href="#icon-shield" /></svg> Fair by design. A
+          new horizon with every pump.</span
+        ><span>Demo credits only <i></i> No deposits or withdrawals</span>
+      </footer>
     </main>
+
+    <dialog
+      class="game-dialog"
+      id="how-to-dialog"
+      aria-labelledby="how-to-title"
+    >
+      <div class="dialog-heading">
+        <span class="overline">YOUR FLIGHT PLAN</span
+        ><button
+          class="close-dialog"
+          data-close-dialog
+          aria-label="Close instructions"
+        >
+          ×
+        </button>
+      </div>
+      <h2 id="how-to-title">From the meadow<br />to the stars<span>.</span></h2>
+      <p>25 pumps. Eight worlds. You decide how far to go.</p>
+      <ol class="instructions">
+        <li>
+          <span>01</span>
+          <div>
+            <strong>Choose your stake</strong>
+            <p>Start with a demo bet from $0.10 to $1,000.</p>
+          </div>
+        </li>
+        <li>
+          <span>02</span>
+          <div>
+            <strong>Catch a little more air</strong>
+            <p>
+              Every pump grows your multiplier and lifts you into a new part of
+              the world. The pop chance rises, too.
+            </p>
+          </div>
+        </li>
+        <li>
+          <span>03</span>
+          <div>
+            <strong>Know when to land</strong>
+            <p>
+              Cash out to collect the displayed payout. If the balloon pops
+              first, your bet is lost.
+            </p>
+          </div>
+        </li>
+      </ol>
+      <div class="dialog-note">
+        Pump 25 cashes out automatically if you survive. Before your first pump,
+        cashing out returns 0.97× your bet. Payouts include your stake.
+      </div>
+      <button class="primary-button" data-close-dialog>
+        Let’s fly <svg class="icon"><use href="#icon-arrow" /></svg>
+      </button>
+    </dialog>
+
+    <dialog class="game-dialog" id="proof-dialog" aria-labelledby="proof-title">
+      <div class="dialog-heading">
+        <span class="overline">FAIR BY DESIGN</span
+        ><button
+          class="close-dialog"
+          data-close-dialog
+          aria-label="Close round details"
+        >
+          ×
+        </button>
+      </div>
+      <h2 id="proof-title">Nothing up<br />our sleeve<span>.</span></h2>
+      <p id="proof-description">
+        Your balloon’s outcome is fixed before its first pump. The seed is
+        revealed when the round ends.
+      </p>
+      <dl class="proof-data">
+        <dt>Round ID</dt>
+        <dd id="proof-round-id"></dd>
+        <dt>SHA-256 seed commitment</dt>
+        <dd id="seed-hash"></dd>
+        <dt>Revealed server seed</dt>
+        <dd id="server-seed"></dd>
+        <dt>Predetermined pop point</dt>
+        <dd id="proof-pop-point"></dd>
+      </dl>
+      <div class="dialog-note">
+        The commitment lets you check that the server seed stayed the same
+        throughout your flight.
+      </div>
+    </dialog>
   </body>
 </html>

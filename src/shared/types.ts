@@ -28,6 +28,7 @@ export interface WalletView {
 }
 
 export interface GameState {
+  poppingDisabled: boolean;
   wallet: WalletView;
   round: RoundView | null;
   history: RoundView[];

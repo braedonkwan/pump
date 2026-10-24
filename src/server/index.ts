@@ -10,7 +10,12 @@ if (!Number.isInteger(port) || port < 1 || port > 65535) {
 const database = openDatabase(
   process.env.DATABASE_PATH ?? resolve('data/pump.sqlite'),
 );
-const server = createApp(new PumpService(database));
+const server = createApp(
+  new PumpService(database, undefined, {
+    // Set to true only when testing the full climb without popping.
+    disablePopping: false,
+  }),
+);
 server.listen(port, process.env.HOST ?? '127.0.0.1', () => {
   console.log(`Pump server: http://${process.env.HOST ?? '127.0.0.1'}:${port}`);
 });

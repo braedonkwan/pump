@@ -201,6 +201,84 @@ test('the 25th surviving pump pays automatically once and rejects a racing casho
   );
 });
 
+test('the testing override makes existing and new rounds safe without changing payouts or normal mode', (context) => {
+  const { database, service, playerId, start } = fixture(context, 1);
+  let round = start().round!;
+  const testingService = new PumpService(database, (id) => seedForPop(id, 1), {
+    disablePopping: true,
+  });
+  assert.equal(testingService.getState(playerId).poppingDisabled, true);
+  assert.equal(testingService.getState(playerId).round?.nextPopProbability, 0);
+
+  for (let pump = 1; pump <= 25; pump++) {
+    round = testingService.pump(playerId, {
+      roundId: round.id,
+      expectedVersion: round.version,
+    }).round!;
+    assert.equal(round.status, pump === 25 ? 'cashed_out' : 'active');
+    assert.equal(round.nextPopProbability, pump === 25 ? null : 0);
+  }
+  assert.equal(round.settlementReason, 'limit');
+  assert.equal(round.payoutCents, getPayoutCents(1_000, 25));
+  assert.equal(round.proof?.popAtPump, 1);
+  assert.equal(
+    testingService.getWallet(playerId).balanceCents,
+    999_000 + round.payoutCents,
+  );
+
+  const newRound = testingService.start(playerId, {
+    betCents: 1_000,
+    requestId: randomUUID(),
+  }).round!;
+  assert.equal(newRound.nextPopProbability, 0);
+  const pumped = testingService.pump(playerId, {
+    roundId: newRound.id,
+    expectedVersion: 0,
+  }).round!;
+  assert.equal(pumped.status, 'active');
+  const cashedOut = testingService.cashout(playerId, {
+    roundId: pumped.id,
+    expectedVersion: pumped.version,
+  }).round!;
+  assert.equal(cashedOut.settlementReason, 'cashout');
+  assert.equal(cashedOut.payoutCents, getPayoutCents(1_000, 1));
+
+  const normalRound = start().round!;
+  assert.equal(service.getState(playerId).poppingDisabled, false);
+  assert.ok(normalRound.nextPopProbability! > 0);
+  assert.equal(
+    service.pump(playerId, {
+      roundId: normalRound.id,
+      expectedVersion: 0,
+    }).round?.status,
+    'popped',
+  );
+});
+
+test('restoring popping after a testing round passed its pop point ends on the next pump', (context) => {
+  const { database, service, playerId, start } = fixture(context, 1);
+  const testingService = new PumpService(database, undefined, {
+    disablePopping: true,
+  });
+  let round = start().round!;
+  for (let pump = 0; pump < 3; pump++) {
+    round = testingService.pump(playerId, {
+      roundId: round.id,
+      expectedVersion: round.version,
+    }).round!;
+  }
+  assert.equal(round.status, 'active');
+  assert.equal(service.getState(playerId).round?.nextPopProbability, 1);
+  const result = service.pump(playerId, {
+    roundId: round.id,
+    expectedVersion: round.version,
+  });
+  assert.equal(result.round?.status, 'popped');
+  assert.equal(result.round.pumps, 4);
+  assert.equal(result.round.payoutCents, 0);
+  assert.equal(result.wallet.balanceCents, 999_000);
+});
+
 test('players cannot see or mutate another player’s round', (context) => {
   const { service, start } = fixture(context);
   const round = start().round!;
