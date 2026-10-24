@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pump</title>
+    <script type="module" src="/main.ts"></script>
+  </head>
+  <body>
+    <main>
+      <h1>Pump</h1>
+      <p>Demo balance: <strong id="balance">Loading...</strong></p>
+
+      <section aria-label="Game">
+        <div class="balloon-area">
+          <div id="balloon" role="img" aria-label="Balloon"></div>
+        </div>
+        <p id="round-status">Start a round to play.</p>
+
+        <dl class="game-stats">
+          <div>
+            <dt>Pumps</dt>
+            <dd id="pump-count">0 / 25</dd>
+          </div>
+          <div>
+            <dt>Multiplier</dt>
+            <dd id="multiplier">1.00x</dd>
+          </div>
+          <div>
+            <dt>Cash-out payout</dt>
+            <dd id="payout">$0.00</dd>
+          </div>
+          <div>
+            <dt>Next pump pop chance</dt>
+            <dd id="pop-chance">4.0%</dd>
+          </div>
+        </dl>
+
+        <form id="bet-form">
+          <label for="bet">Bet amount (USD)</label>
+          <input
+            id="bet"
+            name="bet"
+            type="text"
+            inputmode="decimal"
+            value="10.00"
+            autocomplete="off"
+            aria-describedby="bet-help"
+            maxlength="8"
+            disabled
+          />
+          <button type="submit" id="start-button" disabled>Start round</button>
+        </form>
+        <p id="bet-help">
+          Bet $0.10 to $1,000.00. A surviving 25th pump cashes out
+          automatically.
+        </p>
+        <div class="round-actions">
+          <button id="pump-button" disabled>Pump</button>
+          <button id="cashout-button" disabled>Cash out</button>
+        </div>
+        <p id="message" role="status" aria-live="polite"></p>
+      </section>
+
+      <section id="round-proof" aria-labelledby="seed-title" hidden>
+        <h2>Round seed</h2>
+        <p>SHA-256 commitment: <code id="seed-hash"></code></p>
+        <p>Server seed: <code id="server-seed"></code></p>
+      </section>
+
+      <section aria-labelledby="history-title">
+        <h2 id="history-title">Last 10 rounds</h2>
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Outcome</th>
+              <th scope="col">Bet</th>
+              <th scope="col">Multiplier</th>
+              <th scope="col">Payout</th>
+            </tr>
+          </thead>
+          <tbody id="history-body">
+            <tr>
+              <td colspan="4">No completed rounds yet.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+    </main>
+  </body>
+</html>

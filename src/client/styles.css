@@ -1,0 +1,94 @@
+body {
+  margin: 24px;
+  color: #222;
+  background: #fff;
+  font-family: Arial, sans-serif;
+  line-height: 1.5;
+}
+
+main {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+section {
+  margin-top: 24px;
+}
+
+h2 {
+  font-size: 18px;
+}
+
+button,
+input {
+  padding: 6px 10px;
+  font: inherit;
+}
+
+input {
+  width: 110px;
+}
+
+form,
+.round-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.balloon-area {
+  height: 260px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #ddd;
+}
+
+#balloon {
+  width: 50px;
+  height: 60px;
+  border-radius: 50%;
+  background: #d9534f;
+}
+
+.game-stats > div {
+  display: flex;
+  gap: 12px;
+}
+
+dt {
+  min-width: 160px;
+}
+
+dd {
+  margin: 0;
+}
+
+#bet-help {
+  font-size: 14px;
+}
+
+#message {
+  color: #a02020;
+}
+
+code {
+  overflow-wrap: anywhere;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  border: 1px solid #ddd;
+  padding: 6px;
+  text-align: left;
+}
+
+[hidden] {
+  display: none;
+}

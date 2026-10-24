@@ -1,0 +1,28 @@
+{
+  "name": "pump-game",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "dev": "concurrently --kill-others -n api,web \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "tsx watch src/server/index.ts",
+    "dev:web": "vite --host 127.0.0.1",
+    "check": "tsc --noEmit",
+    "test": "tsx --test tests/*.test.ts",
+    "build": "npm run check && vite build && tsc -p tsconfig.server.json",
+    "start": "node dist/server/server/index.js",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.0",
+    "concurrently": "^10.0.6",
+    "prettier": "^3.9.10",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.5"
+  }
+}
