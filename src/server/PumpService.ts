@@ -13,6 +13,7 @@ import {
   CENT_ALIGNED_CURVE_VERSION,
   MULTIPLIER_SCALE,
   INITIAL_BALANCE_CENTS,
+  MIN_BET_CENTS,
   type CurveVersion,
 } from '../shared/settings.js';
 import type {
@@ -55,7 +56,7 @@ function prepareStatements(database: GameDatabase) {
     wallet: database.prepare('SELECT balance_cents FROM players WHERE id = ?'),
     refillWallet: database.prepare(
       `UPDATE players SET balance_cents = ?
-       WHERE id = ? AND balance_cents = 0
+       WHERE id = ? AND balance_cents < ?
        AND NOT EXISTS (
          SELECT 1 FROM rounds WHERE player_id = players.id AND status = 'active'
        )`,
@@ -142,20 +143,24 @@ export class PumpService {
   getWallet(playerId: string): WalletView {
     let player = this.statements.wallet.get(playerId);
     if (!player) throw new GameError(404, 'Player not found.');
-    if (Number(player.balance_cents) !== 0)
+    if (Number(player.balance_cents) >= MIN_BET_CENTS)
       return { balanceCents: Number(player.balance_cents) };
-    // A fully staked wallet is also zero; refill only after its round is settled.
+    // A staked wallet can be below the minimum; refill only after settlement.
     // The conditional update makes concurrent reads and retries safe.
     return transaction(this.database, () => {
+      player = this.statements.wallet.get(playerId);
+      if (!player) throw new GameError(404, 'Player not found.');
+      const refillCents = INITIAL_BALANCE_CENTS - Number(player.balance_cents);
       const refilled = this.statements.refillWallet.run(
         INITIAL_BALANCE_CENTS,
         playerId,
+        MIN_BET_CENTS,
       );
       if (refilled.changes === 1) {
         this.recordWalletChange(
           playerId,
           'refill',
-          INITIAL_BALANCE_CENTS,
+          refillCents,
           `refill:${randomUUID()}`,
         );
       }
@@ -163,9 +168,7 @@ export class PumpService {
       if (!player) throw new GameError(404, 'Player not found.');
       return {
         balanceCents: Number(player.balance_cents),
-        ...(refilled.changes === 1
-          ? { refillCents: INITIAL_BALANCE_CENTS }
-          : {}),
+        ...(refilled.changes === 1 ? { refillCents } : {}),
       };
     });
   }
@@ -220,7 +223,7 @@ export class PumpService {
             'That requestId was already used for a different bet.',
           );
         }
-        return this.getState(playerId, previous.id);
+        return this.getState(playerId);
       }
       try {
         validateBet(request.betCents);
@@ -302,7 +305,8 @@ export class PumpService {
         round.settlement_reason === 'cashout' &&
         round.version === request.expectedVersion + 1
       ) {
-        return this.getState(playerId, round.id);
+        // Another tab may already have started a new flight since this cashout.
+        return this.getState(playerId);
       }
       if (
         round.status !== 'active' ||

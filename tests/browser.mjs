@@ -33,7 +33,7 @@ const server = createApp(
   new PumpService(
     database,
     (id) =>
-      seedForPop(id, [26, 2, 26, 26, 25, 26, 1, 1, 1][roundNumber++] ?? 26),
+      seedForPop(id, [26, 2, 26, 26, 25, 26, 1, 1, 1, 1][roundNumber++] ?? 26),
     serviceOptions,
   ),
 );
@@ -620,21 +620,21 @@ try {
   database.prepare('UPDATE players SET balance_cents = ?').run(9);
   await send('Page.reload');
   await waitFor(
-    "document.querySelector('#bet')?.disabled === false",
-    'below-minimum wallet',
+    "document.querySelector('#balance')?.textContent === '$10,000.00' && document.querySelector('#bet')?.disabled === false",
+    'below-minimum wallet recovers on reload',
   );
   assert.equal(
     await evaluate("document.querySelector('#start-button').disabled"),
-    true,
+    false,
   );
   assert.ok(
     await evaluate(
-      "[...document.querySelectorAll('[data-bet-adjust], [data-bet-preset]')].every(button => button.disabled)",
+      "[...document.querySelectorAll('[data-bet-adjust], [data-bet-preset]')].some(button => !button.disabled)",
     ),
   );
-  assert.match(
+  assert.equal(
     await evaluate("document.querySelector('#bet-error').textContent"),
-    /balance is below/,
+    '',
   );
   database.prepare('UPDATE players SET balance_cents = ?').run(1_000_000);
   await send('Page.reload');
@@ -1520,6 +1520,50 @@ try {
   await waitFor(
     "!document.querySelector('#start-button').disabled",
     'last flight finishes before the refill fixture',
+  );
+  database.prepare('UPDATE players SET balance_cents = 11').run();
+  await send('Page.reload');
+  await waitFor(
+    "document.querySelector('#balance')?.textContent === '$0.11' && !document.querySelector('#start-button').disabled",
+    'wallet with a one-cent remainder loaded',
+  );
+  await evaluate(
+    "document.querySelector('#bet').value = '0.10'; document.querySelector('#bet-form').requestSubmit()",
+  );
+  await waitFor(
+    "!document.querySelector('#pump-button').disabled",
+    'round with a one-cent remainder starts',
+  );
+  assert.equal(
+    await evaluate("document.querySelector('#balance').textContent"),
+    '$0.01',
+  );
+  assert.equal(
+    await evaluate(
+      "fetch('/api/wallet').then(r => r.json()).then(w => w.balanceCents)",
+    ),
+    1,
+    'A one-cent remainder is not refilled during an active flight',
+  );
+  await pump(1);
+  assert.equal(
+    await evaluate("document.querySelector('#world-scene').dataset.status"),
+    'popped',
+  );
+  assert.equal(
+    await evaluate("document.querySelector('#balance').textContent"),
+    '$10,000.00',
+  );
+  assert.match(
+    await evaluate("document.querySelector('#result-caption').textContent"),
+    /Demo balance reset to \$10,000\.00/,
+  );
+  await waitFor(
+    "!document.querySelector('#start-button').disabled",
+    'one-cent remainder refill allows another flight',
+  );
+  console.log(
+    'PASS: a one-cent remainder refills after settlement with accurate balance feedback',
   );
   database.prepare('UPDATE players SET balance_cents = 10').run();
   await send('Page.reload');

@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "concurrently --kill-others -n api,web \"npm:dev:api\" \"npm:dev:web\"",
-    "dev:api": "tsx watch src/server/index.ts --test-mode",
+    "dev:api": "tsx watch src/server/index.ts",
     "dev:test": "concurrently --kill-others -n api,web \"npm:dev:api:test\" \"npm:dev:web\"",
     "dev:api:test": "tsx watch src/server/index.ts --test-mode",
     "dev:web": "vite --host 127.0.0.1",
@@ -20,7 +20,7 @@
     "build": "npm run check && vite build && tsc -p tsconfig.server.json",
     "deploy:check": "npm run build && wrangler deploy --dry-run --outdir dist/worker",
     "deploy": "npm run build && wrangler deploy",
-    "start": "node dist/server/server/index.js --test-mode",
+    "start": "node dist/server/server/index.js",
     "start:test": "node dist/server/server/index.js --test-mode",
     "format": "prettier --write .",
     "format:check": "prettier --check ."

@@ -125,6 +125,70 @@ test('recent normal requests keep a slot through a skipped idle heartbeat', asyn
   assert.equal((await call()).status, 200);
 });
 
+test('a successful pump renews the full inactivity window across restarts', async (context) => {
+  for (const idleSeconds of [120, 180, 3600]) {
+    const { join, call, advance, restart } = fixture(context, {
+      MAX_ACTIVE_PLAYERS: '1',
+      PLAYER_IDLE_SECONDS: String(idleSeconds),
+    });
+    const { cookie } = await join();
+    const started = (await (
+      await call('/pump/start', cookie, {
+        betCents: 1_000,
+        requestId: randomUUID(),
+      })
+    ).json()) as GameState;
+    advance(59_000);
+    const pumped = await call('/pump/pump', cookie, {
+      roundId: started.round!.id,
+      expectedVersion: 0,
+    });
+    assert.equal(pumped.status, 200);
+    restart();
+
+    advance(idleSeconds * 1_000 - 1);
+    assert.equal(
+      (await call()).status,
+      503,
+      `A successful pump keeps its slot for the full ${idleSeconds}-second timeout`,
+    );
+    advance(1);
+    assert.equal((await call()).status, 200);
+    const restored = (await (
+      await call('/pump/state', cookie)
+    ).json()) as GameState;
+    assert.equal(restored.room?.admitted, false);
+    assert.equal(restored.round?.status, 'active');
+    assert.equal(restored.round.pumps, 1);
+  }
+});
+
+test('a rejected pump does not renew the inactivity timeout', async (context) => {
+  const { join, call, advance } = fixture(context, {
+    MAX_ACTIVE_PLAYERS: '1',
+    PLAYER_IDLE_SECONDS: '180',
+  });
+  const { cookie } = await join();
+  const started = (await (
+    await call('/pump/start', cookie, {
+      betCents: 1_000,
+      requestId: randomUUID(),
+    })
+  ).json()) as GameState;
+  advance(59_000);
+  assert.equal(
+    (
+      await call('/pump/pump', cookie, {
+        roundId: started.round!.id,
+        expectedVersion: 1,
+      })
+    ).status,
+    409,
+  );
+  advance(121_000);
+  assert.equal((await call()).status, 200);
+});
+
 test('expired players recover and cash out while full, with pump and start rejected unchanged', async (context) => {
   const { database, join, call, advance, restart } = fixture(context, {
     MAX_ACTIVE_PLAYERS: '1',

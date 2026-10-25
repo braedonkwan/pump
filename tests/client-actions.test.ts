@@ -86,6 +86,28 @@ test('client serializes rapid pumps while a response is pending', async (context
   assert.equal(actions.busy, false);
 });
 
+test('a stale tab cashout restores the newer active flight without settling it', async (context) => {
+  const { actions, deliver } = fixture(context);
+  await actions.connect();
+  await actions.start(1_000);
+  const otherTab = new GameActions(
+    { changed() {}, message() {}, isSettling: () => false },
+    deliver,
+  );
+  await otherTab.connect();
+  await otherTab.play('cashout');
+  await otherTab.start(2_000);
+  const current = otherTab.state!;
+
+  await actions.play('cashout');
+
+  assert.equal(actions.connected, true);
+  assert.deepEqual(actions.state, current);
+  assert.equal(actions.state?.round?.status, 'active');
+  assert.equal(actions.state.wallet.balanceCents, 998_000);
+  assert.deepEqual(await deliver('/pump/state'), current);
+});
+
 test('a full public game displays the server message and can be retried', async (context) => {
   const { actions, deliver, setTransport, messages } = fixture(context);
   setTransport(async () => {
@@ -169,6 +191,93 @@ test('a late heartbeat cannot replace a newer game action', async (context) => {
   await heartbeat;
   assert.equal(actions.state?.round?.pumps, 1);
   assert.equal(actions.state?.room?.admitted, true);
+});
+
+for (const outcome of ['success', 'error'] as const) {
+  test(`a late heartbeat ${outcome} preserves a newer connection error`, async (context) => {
+    context.mock.timers.enable({ apis: ['Date'], now: Date.now() });
+    const room = { admitted: true, activePlayers: 1, maxPlayers: 25 };
+    for (const request of ['pump', 'reconnect'] as const) {
+      let resolve!: (room: RoomState) => void;
+      let reject!: (error: Error) => void;
+      const pending = new Promise<RoomState>((accept, fail) => {
+        resolve = accept;
+        reject = fail;
+      });
+      const { actions, deliver, setTransport, messages } = fixture(
+        context,
+        () => pending,
+      );
+      setTransport(async (path, body) => ({
+        ...(await deliver(path, body)),
+        room,
+      }));
+      await actions.connect();
+      await actions.start(1_000);
+      context.mock.timers.tick(60_000);
+      const heartbeat = actions.refreshPresence();
+
+      setTransport(async () => {
+        throw new ApiError(
+          'Too many requests. Please wait a moment and try again.',
+          429,
+        );
+      });
+      if (request === 'pump') await actions.play('pump');
+      else await actions.connect();
+      assert.equal(actions.connected, false);
+      assert.match(messages.at(-1)!, /Too many requests/);
+      const failedState = actions.state;
+      const failedMessages = [...messages];
+
+      if (outcome === 'success') resolve(room);
+      else reject(new ApiError('Heartbeat unavailable.', 503));
+      await heartbeat;
+
+      assert.equal(actions.connected, false, request);
+      assert.equal(actions.state, failedState, request);
+      assert.deepEqual(messages, failedMessages, request);
+    }
+  });
+}
+
+test('a heartbeat started before a recovered action cannot clear its error when state is unchanged', async (context) => {
+  context.mock.timers.enable({ apis: ['Date'], now: Date.now() });
+  const room = { admitted: true, activePlayers: 1, maxPlayers: 25 };
+  let resolve!: (room: RoomState) => void;
+  const pending = new Promise<RoomState>((accept) => {
+    resolve = accept;
+  });
+  const { actions, deliver, setTransport, messages } = fixture(
+    context,
+    () => pending,
+  );
+  setTransport(async (path, body) => ({
+    ...(await deliver(path, body)),
+    room,
+  }));
+  await actions.connect();
+  await actions.start(1_000);
+  const unchangedState = actions.state!;
+  context.mock.timers.tick(60_000);
+  const heartbeat = actions.refreshPresence();
+  setTransport(async (path) => {
+    if (path === '/pump/state') return unchangedState;
+    throw new ApiError(
+      'Too many requests. Please wait a moment and try again.',
+      429,
+    );
+  });
+  await actions.play('pump');
+  assert.equal(actions.connected, true);
+  assert.match(messages.at(-1)!, /Too many requests/);
+  const recoveredMessages = [...messages];
+
+  resolve(room);
+  await heartbeat;
+
+  assert.equal(actions.state, unchangedState);
+  assert.deepEqual(messages, recoveredMessages);
 });
 
 test('rate-limit errors remain visible when the recovery request is also throttled', async (context) => {

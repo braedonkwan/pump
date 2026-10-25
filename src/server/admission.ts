@@ -102,19 +102,13 @@ export class Admission {
           maxPlayers: this.config.maxPlayers,
         };
 
-      // A recent action can skip an idle heartbeat. Leave time for the next one.
-      if (
-        !existing ||
-        Number(lease.expires_at) - now <=
-          Math.max(this.config.idleMs / 2, PRESENCE_INTERVAL_MS * 2)
-      ) {
-        this.database
-          .prepare(
-            `INSERT INTO player_leases (player_id, expires_at) VALUES (?, ?)
+      // Expiry follows the latest activity, even when the client skips a heartbeat.
+      this.database
+        .prepare(
+          `INSERT INTO player_leases (player_id, expires_at) VALUES (?, ?)
           ON CONFLICT(player_id) DO UPDATE SET expires_at = excluded.expires_at`,
-          )
-          .run(playerId, now + this.config.idleMs);
-      }
+        )
+        .run(playerId, now + this.config.idleMs);
       return {
         admitted: true,
         activePlayers: activePlayers + (existing ? 0 : 1),

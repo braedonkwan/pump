@@ -1,7 +1,21 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { test } from 'node:test';
 import { getGameConfig } from '../src/server/config.js';
+
+test('default npm launch commands keep popping enabled', () => {
+  const { scripts } = JSON.parse(
+    readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
+  ) as { scripts: Record<'dev:api' | 'start', string> };
+  for (const command of ['dev:api', 'start'] as const) {
+    assert.equal(
+      getGameConfig({}, scripts[command].split(/\s+/)).testMode,
+      false,
+      `${command} must use normal gameplay`,
+    );
+  }
+});
 
 test('normal play keeps the normal database and session cookie', () => {
   assert.deepEqual(getGameConfig({}, []), {

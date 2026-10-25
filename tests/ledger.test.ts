@@ -9,7 +9,11 @@ import {
   initializeLedger,
 } from '../src/server/schema.js';
 import { sha256 } from '../src/server/fairness.js';
-import { INITIAL_BALANCE_CENTS } from '../src/shared/settings.js';
+import {
+  INITIAL_BALANCE_CENTS,
+  MAX_BET_CENTS,
+  MIN_BET_CENTS,
+} from '../src/shared/settings.js';
 import { seedForPop } from './helpers.js';
 
 function fixture(context: TestContext, popAtPump = 26) {
@@ -151,6 +155,62 @@ test('losing the entire starting balance records exactly one automatic refill', 
   service.getWallet(playerId);
   assert.equal(entries().filter((entry) => entry.kind === 'refill').length, 1);
   assert.equal(entries().length, 12);
+  reconcile();
+});
+
+test('a one-cent remainder refills atomically with the exact credit and allows another flight', (context) => {
+  const { database, service, playerId, entries, reconcile } = fixture(
+    context,
+    2,
+  );
+  const first = service.start(playerId, {
+    betCents: MIN_BET_CENTS,
+    requestId: randomUUID(),
+  }).round!;
+  service.pump(playerId, { roundId: first.id, expectedVersion: 0 });
+  service.cashout(playerId, { roundId: first.id, expectedVersion: 1 });
+  assert.equal(
+    service.getWallet(playerId).balanceCents,
+    INITIAL_BALANCE_CENTS + 1,
+  );
+
+  for (let index = 0; index < INITIAL_BALANCE_CENTS / MAX_BET_CENTS; index++) {
+    const started = service.start(playerId, {
+      betCents: MAX_BET_CENTS,
+      requestId: randomUUID(),
+    }).round!;
+    const roundId = started.id;
+    service.pump(playerId, { roundId, expectedVersion: 0 });
+    if (index === INITIAL_BALANCE_CENTS / MAX_BET_CENTS - 1) {
+      assert.deepEqual(service.getWallet(playerId), { balanceCents: 1 });
+      database.exec(`CREATE TRIGGER reject_remainder_refill BEFORE INSERT ON wallet_ledger
+        WHEN NEW.kind = 'refill' BEGIN SELECT RAISE(ABORT, 'ledger unavailable'); END;`);
+      assert.throws(
+        () => service.pump(playerId, { roundId, expectedVersion: 1 }),
+        /ledger unavailable/,
+      );
+      assert.equal(service.getState(playerId).round?.status, 'active');
+      assert.deepEqual(service.getWallet(playerId), { balanceCents: 1 });
+      reconcile();
+      database.exec('DROP TRIGGER reject_remainder_refill');
+    }
+    service.pump(playerId, { roundId, expectedVersion: 1 });
+    reconcile();
+  }
+  const refills = entries().filter((entry) => entry.kind === 'refill');
+  assert.equal(refills.length, 1);
+  assert.equal(refills[0]?.delta_cents, INITIAL_BALANCE_CENTS - 1);
+  assert.equal(refills[0]?.balance_after_cents, INITIAL_BALANCE_CENTS);
+  assert.deepEqual(new PumpService(database).getState(playerId).wallet, {
+    balanceCents: INITIAL_BALANCE_CENTS,
+  });
+  assert.equal(entries().filter((entry) => entry.kind === 'refill').length, 1);
+  const next = service.start(playerId, {
+    betCents: MIN_BET_CENTS,
+    requestId: randomUUID(),
+  });
+  assert.equal(next.round?.status, 'active');
+  assert.equal(next.wallet.balanceCents, INITIAL_BALANCE_CENTS - MIN_BET_CENTS);
   reconcile();
 });
 

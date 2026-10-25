@@ -28,6 +28,7 @@ export class GameActions implements ActionState {
   pendingAction: GameAction | null = null;
   private lastContact = 0;
   private presencePending = false;
+  private requestGeneration = 0;
 
   constructor(
     private readonly callbacks: ActionCallbacks,
@@ -37,6 +38,7 @@ export class GameActions implements ActionState {
 
   async connect(): Promise<void> {
     if (this.busy) return;
+    this.requestGeneration++;
     this.busy = true;
     this.callbacks.message('Connecting to your wallet…');
     this.callbacks.changed();
@@ -84,6 +86,7 @@ export class GameActions implements ActionState {
 
   private async act(action: GameAction, body: object): Promise<void> {
     if (this.busy || !this.connected) return;
+    this.requestGeneration++;
     this.busy = true;
     this.pendingAction = action;
     this.callbacks.message('');
@@ -126,16 +129,23 @@ export class GameActions implements ActionState {
       Date.now() - this.lastContact < PRESENCE_RECENT_REQUEST_MS
     )
       return;
+    // Failed requests can leave state unchanged, so identity alone is not enough.
+    const requestGeneration = this.requestGeneration;
+    const isCurrent = () =>
+      this.state === state &&
+      this.requestGeneration === requestGeneration &&
+      this.connected &&
+      !this.busy;
     this.presencePending = true;
     try {
       const room = await this.heartbeat();
-      if (this.state !== state || this.busy) return;
+      if (!isCurrent()) return;
       this.state = { ...state, room };
       this.lastContact = Date.now();
       this.showRoomMessage();
       this.callbacks.changed();
     } catch (error) {
-      if (this.state !== state || this.busy) return;
+      if (!isCurrent()) return;
       this.connected = false;
       this.callbacks.message(
         error instanceof ApiError

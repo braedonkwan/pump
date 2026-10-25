@@ -30,7 +30,7 @@ export interface RoundView {
 
 export interface WalletView {
   balanceCents: number;
-  // Present when this response automatically refilled an empty demo wallet.
+  // Credit added when automatically refilling a demo wallet below the minimum bet.
   refillCents?: number;
 }
 

@@ -150,6 +150,16 @@ test(
     assert.equal(restored.round?.id, next.round?.id);
     assert.equal(restored.round?.status, 'active');
     assert.equal(restored.wallet.balanceCents, 999_000);
+    assert.deepEqual(
+      (await (await call('/pump/start', cookie, request)).json()) as GameState,
+      restored,
+    );
+    assert.deepEqual(
+      (await (
+        await call('/pump/cashout', cookie, cashout)
+      ).json()) as GameState,
+      restored,
+    );
     assert.equal((await call()).status, 503);
     await storage.exec(
       'UPDATE player_leases SET expires_at = 0 WHERE player_id = (SELECT player_id FROM rounds WHERE id = ?)',

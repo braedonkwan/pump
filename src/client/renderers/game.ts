@@ -156,7 +156,7 @@ export function renderGame(state: GameState | null): void {
       : money(round.payoutCents);
     element('#result-caption').textContent = popped
       ? state?.wallet.refillCents
-        ? `${money(round.betCents)} stake lost. Demo balance reset to ${money(state.wallet.refillCents)}.`
+        ? `${money(round.betCents)} stake lost. Demo balance reset to ${money(state.wallet.balanceCents)}.`
         : `${money(round.betCents)} stake lost. Start fresh whenever you’re ready.`
       : round.settlementReason === 'limit'
         ? 'The Astral Crown. You reached the very top.'
