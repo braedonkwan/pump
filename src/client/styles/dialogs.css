@@ -7,7 +7,7 @@
   max-width: 470px;
   width: calc(100% - 32px);
   box-shadow: 0 25px 100px #00000080;
-  max-height: calc(100dvh - 40px);
+  max-height: calc(100vh - 40px);
 }
 .game-dialog::backdrop {
   background: #020812a6;
@@ -20,8 +20,8 @@
   align-items: center;
 }
 .dialog-heading .overline {
-  font-size: 8px;
-  color: #96c7b7;
+  font-size: 11px;
+  color: #bce5d4;
 }
 .close-dialog {
   display: grid;
@@ -29,10 +29,10 @@
   background: #ffffff06;
   border: 1px solid #ffffff0d;
   border-radius: 7px;
-  width: 29px;
-  height: 29px;
+  width: 40px;
+  height: 40px;
   font-size: 20px;
-  color: #8796b0;
+  color: #bccbe1;
 }
 .close-dialog:hover {
   background: #ffffff10;
@@ -50,9 +50,9 @@
   color: var(--mint);
 }
 .game-dialog > p {
-  font-size: 11px;
-  color: #8293ad;
-  line-height: 1.9;
+  font-size: 14px;
+  color: #bac8de;
+  line-height: 1.75;
   margin-top: 15px;
 }
 .instructions {
@@ -68,40 +68,40 @@
   gap: 14px;
 }
 .instructions li > span {
-  font-size: 10px;
-  color: #92d0b9;
+  font-size: 12px;
+  color: #b3eed3;
   border: 1px solid #9bf2d124;
   background: #9bf2d106;
   border-radius: 6px;
   padding: 7px;
 }
 .instructions strong {
-  font-size: 12px;
-  color: #d5dfed;
-  font-weight: 500;
+  font-size: 15px;
+  color: #e5edf8;
+  font-weight: 600;
 }
 .instructions p {
-  font-size: 10px;
-  color: #798da9;
-  line-height: 1.8;
+  font-size: 14px;
+  color: #b6c5dc;
+  line-height: 1.7;
   margin-top: 5px;
 }
 .dialog-note {
-  color: #7488a6;
+  color: #b8c8df;
   padding: 13px;
   border: 1px solid #ffffff07;
   background: #050e2026;
   border-radius: 8px;
-  font-size: 10px;
-  line-height: 1.8;
+  font-size: 13px;
+  line-height: 1.7;
   margin: 24px 0;
 }
 .proof-data {
   margin: 26px 0;
 }
 .proof-data dt {
-  font-size: 9px;
-  color: #95a6bd;
+  font-size: 13px;
+  color: #c4d1e4;
   margin: 18px 0 7px;
 }
 .proof-data dd {
@@ -111,8 +111,8 @@
   border-radius: 6px;
   padding: 10px;
   font-family: Consolas, monospace;
-  font-size: 10px;
-  color: #a0c2ba;
-  line-height: 1.75;
+  font-size: 12px;
+  color: #c4e5db;
+  line-height: 1.7;
   overflow-wrap: anywhere;
 }

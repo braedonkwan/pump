@@ -30,6 +30,8 @@ export interface RoundView {
 
 export interface WalletView {
   balanceCents: number;
+  // Present when this response automatically refilled an empty demo wallet.
+  refillCents?: number;
 }
 
 export interface GameState {
@@ -38,6 +40,13 @@ export interface GameState {
   wallet: WalletView;
   round: RoundView | null;
   history: RoundView[];
+  room?: RoomState;
+}
+
+export interface RoomState {
+  admitted: boolean;
+  activePlayers: number;
+  maxPlayers: number;
 }
 
 export interface StartRequest {

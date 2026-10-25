@@ -1,0 +1,25 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "pump-demo",
+  "main": "src/worker/index.ts",
+  "compatibility_date": "2026-10-25",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "assets": {
+    "directory": "./dist/client",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"],
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "PUMP_ROOM", "class_name": "PumpRoom" }],
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["PumpRoom"] }],
+  "vars": {
+    "MAX_ACTIVE_PLAYERS": "25",
+    "PLAYER_IDLE_SECONDS": "180",
+    "SESSION_REQUESTS_PER_MINUTE": "120",
+    "SESSION_REQUEST_BURST": "30",
+    "IP_REQUESTS_PER_MINUTE": "1000",
+    "IP_REQUEST_BURST": "100",
+  },
+}

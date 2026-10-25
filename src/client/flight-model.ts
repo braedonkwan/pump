@@ -1,8 +1,10 @@
 import { MAX_PUMPS } from '../shared/settings.js';
+import type { RoundView } from '../shared/types.js';
 
 export const FLIGHT_ZONES = [
   {
     id: 'meadow',
+    icon: 'wind',
     shortName: 'Meadow',
     color: '#90cde6',
     pump: 0,
@@ -11,6 +13,7 @@ export const FLIGHT_ZONES = [
   },
   {
     id: 'cloudlands',
+    icon: 'cloud',
     shortName: 'Cloudlands',
     color: '#80b4ef',
     pump: 4,
@@ -19,6 +22,7 @@ export const FLIGHT_ZONES = [
   },
   {
     id: 'crystal-expanse',
+    icon: 'crystal',
     shortName: 'Crystal',
     color: '#39b5d7',
     pump: 8,
@@ -27,6 +31,7 @@ export const FLIGHT_ZONES = [
   },
   {
     id: 'tempest-sea',
+    icon: 'bolt',
     shortName: 'Tempest',
     color: '#3a438e',
     pump: 12,
@@ -35,6 +40,7 @@ export const FLIGHT_ZONES = [
   },
   {
     id: 'aurora-gardens',
+    icon: 'flower',
     shortName: 'Aurora',
     color: '#65458f',
     pump: 16,
@@ -43,6 +49,7 @@ export const FLIGHT_ZONES = [
   },
   {
     id: 'celestial-ruins',
+    icon: 'orbit',
     shortName: 'Ruins',
     color: '#343267',
     pump: 20,
@@ -51,6 +58,7 @@ export const FLIGHT_ZONES = [
   },
   {
     id: 'stargate',
+    icon: 'portal',
     shortName: 'Stargate',
     color: '#38306f',
     pump: 23,
@@ -59,6 +67,7 @@ export const FLIGHT_ZONES = [
   },
   {
     id: 'astral-crown',
+    icon: 'crown',
     shortName: 'Crown',
     color: '#6b4386',
     pump: MAX_PUMPS,
@@ -66,6 +75,20 @@ export const FLIGHT_ZONES = [
     caption: 'The very top. A view like no other.',
   },
 ] as const;
+
+export type FlightZone = (typeof FLIGHT_ZONES)[number];
+export type FlightEnding = 'pop' | 'cashout' | 'summit';
+
+export function getFlightEnding(
+  round:
+    Pick<RoundView, 'status' | 'settlementReason' | 'pumps'> | null | undefined,
+): FlightEnding | null {
+  if (round?.status === 'popped') return 'pop';
+  if (round?.status !== 'cashed_out') return null;
+  return round.settlementReason === 'limit' && round.pumps === MAX_PUMPS
+    ? 'summit'
+    : 'cashout';
+}
 
 export const PRELOAD_PUMPS = 2;
 export const SUMMIT_EFFECTS_START_PUMP = MAX_PUMPS - 4;
@@ -82,10 +105,6 @@ export function getBackdropSegments(worldHeight: number) {
   return FLIGHT_ZONES.map((zone, index) => ({
     id: zone.id,
     src: `/art/world/${zone.id}.png`,
-    mobileSrc:
-      zone.id === 'astral-crown'
-        ? '/art/world/astral-crown-mobile.png'
-        : undefined,
     color: zone.color,
     bottom: index * height * (1 - BACKDROP_OVERLAP),
     height,
@@ -133,7 +152,7 @@ export function getWorldLayout(width: number, height: number, pumps: number) {
       'World viewport dimensions must be positive and finite.',
     );
   }
-  // Each scene has room to unfold; mobile crops the sides instead of stretching it.
+  // Give each scene enough vertical space to fill the flight viewport.
   const worldHeight = Math.max(
     (width * BACKDROP_SPAN) / 1.5,
     height * (FLIGHT_ZONES.length - 1),

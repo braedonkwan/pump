@@ -1,5 +1,5 @@
 import { randomBytes, randomUUID } from 'node:crypto';
-import type { DatabaseSync, SQLOutputValue } from 'node:sqlite';
+import type { SQLOutputValue } from 'node:sqlite';
 import {
   getNextPopProbability,
   getPayoutCents,
@@ -12,6 +12,7 @@ import {
   CURRENT_CURVE_VERSION,
   CENT_ALIGNED_CURVE_VERSION,
   MULTIPLIER_SCALE,
+  INITIAL_BALANCE_CENTS,
   type CurveVersion,
 } from '../shared/settings.js';
 import type {
@@ -24,7 +25,7 @@ import type {
   StartRequest,
   WalletView,
 } from '../shared/types.js';
-import { transaction } from './database.js';
+import { transaction, type GameDatabase } from './storage.js';
 import { GameError } from './errors.js';
 import { createServerSeed, deriveOutcome, sha256 } from './fairness.js';
 
@@ -45,13 +46,20 @@ interface RoundRow extends Record<string, SQLOutputValue> {
   created_at: string;
 }
 
-function prepareStatements(database: DatabaseSync) {
+function prepareStatements(database: GameDatabase) {
   return {
     session: database.prepare('SELECT id FROM players WHERE session_hash = ?'),
     createPlayer: database.prepare(
       'INSERT INTO players (id, session_hash) VALUES (?, ?)',
     ),
     wallet: database.prepare('SELECT balance_cents FROM players WHERE id = ?'),
+    refillWallet: database.prepare(
+      `UPDATE players SET balance_cents = ?
+       WHERE id = ? AND balance_cents = 0
+       AND NOT EXISTS (
+         SELECT 1 FROM rounds WHERE player_id = players.id AND status = 'active'
+       )`,
+    ),
     history: database.prepare(
       "SELECT * FROM rounds WHERE player_id = ? AND status != 'active' ORDER BY rowid DESC LIMIT 10",
     ),
@@ -83,6 +91,11 @@ function prepareStatements(database: DatabaseSync) {
     credit: database.prepare(
       'UPDATE players SET balance_cents = balance_cents + ? WHERE id = ?',
     ),
+    ledger: database.prepare(
+      `INSERT INTO wallet_ledger
+        (event_key, player_id, round_id, kind, delta_cents, balance_after_cents, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    ),
   };
 }
 
@@ -90,7 +103,7 @@ export class PumpService {
   private readonly statements: ReturnType<typeof prepareStatements>;
 
   constructor(
-    private readonly database: DatabaseSync,
+    private readonly database: GameDatabase,
     private readonly seedFactory: (
       roundId: string,
     ) => string = createServerSeed,
@@ -99,25 +112,62 @@ export class PumpService {
     this.statements = prepareStatements(database);
   }
 
+  findSession(token: string | undefined): string | undefined {
+    if (!token || !/^[a-f0-9]{64}$/.test(token)) return undefined;
+    const player = this.statements.session.get(sha256(token));
+    return player ? String(player.id) : undefined;
+  }
+
   getSession(token: string | undefined): {
     playerId: string;
     newToken?: string;
   } {
-    if (token && /^[a-f0-9]{64}$/.test(token)) {
-      const player = this.statements.session.get(sha256(token));
-      if (player) return { playerId: String(player.id) };
-    }
+    const existing = this.findSession(token);
+    if (existing) return { playerId: existing };
 
     const newToken = randomBytes(32).toString('hex');
     const playerId = randomUUID();
-    this.statements.createPlayer.run(playerId, sha256(newToken));
+    transaction(this.database, () => {
+      this.statements.createPlayer.run(playerId, sha256(newToken));
+      this.recordWalletChange(
+        playerId,
+        'opening',
+        INITIAL_BALANCE_CENTS,
+        `opening:${playerId}`,
+      );
+    });
     return { playerId, newToken };
   }
 
   getWallet(playerId: string): WalletView {
-    const player = this.statements.wallet.get(playerId);
+    let player = this.statements.wallet.get(playerId);
     if (!player) throw new GameError(404, 'Player not found.');
-    return { balanceCents: Number(player.balance_cents) };
+    if (Number(player.balance_cents) !== 0)
+      return { balanceCents: Number(player.balance_cents) };
+    // A fully staked wallet is also zero; refill only after its round is settled.
+    // The conditional update makes concurrent reads and retries safe.
+    return transaction(this.database, () => {
+      const refilled = this.statements.refillWallet.run(
+        INITIAL_BALANCE_CENTS,
+        playerId,
+      );
+      if (refilled.changes === 1) {
+        this.recordWalletChange(
+          playerId,
+          'refill',
+          INITIAL_BALANCE_CENTS,
+          `refill:${randomUUID()}`,
+        );
+      }
+      player = this.statements.wallet.get(playerId);
+      if (!player) throw new GameError(404, 'Player not found.');
+      return {
+        balanceCents: Number(player.balance_cents),
+        ...(refilled.changes === 1
+          ? { refillCents: INITIAL_BALANCE_CENTS }
+          : {}),
+      };
+    });
   }
 
   getHistory(playerId: string): RoundView[] {
@@ -206,6 +256,13 @@ export class PumpService {
         popAtPump,
         new Date().toISOString(),
       );
+      this.recordWalletChange(
+        playerId,
+        'bet',
+        -request.betCents,
+        `bet:${roundId}`,
+        roundId,
+      );
       return this.getState(playerId, roundId);
     });
   }
@@ -292,9 +349,36 @@ export class PumpService {
         throw new GameError(409, 'This round already changed.');
       if (payoutCents > 0) {
         this.statements.credit.run(payoutCents, playerId);
+        this.recordWalletChange(
+          playerId,
+          'payout',
+          payoutCents,
+          `payout:${round.id}`,
+          round.id,
+        );
       }
       return this.getState(playerId, round.id);
     });
+  }
+
+  private recordWalletChange(
+    playerId: string,
+    kind: 'opening' | 'bet' | 'payout' | 'refill',
+    deltaCents: number,
+    eventKey: string,
+    roundId: string | null = null,
+  ): void {
+    const wallet = this.statements.wallet.get(playerId);
+    if (!wallet) throw new GameError(404, 'Player not found.');
+    this.statements.ledger.run(
+      eventKey,
+      playerId,
+      roundId,
+      kind,
+      deltaCents,
+      Number(wallet.balance_cents),
+      new Date().toISOString(),
+    );
   }
 
   private findRound(playerId: string, roundId: string): RoundRow | undefined {

@@ -6,6 +6,7 @@ import {
   BET_STEP_CENTS,
   MIN_RTP_NUMERATOR,
   MIN_RTP_DENOMINATOR,
+  INITIAL_BALANCE_CENTS,
 } from '../../shared/settings.js';
 import { element } from '../dom.js';
 import { money } from '../format.js';
@@ -15,6 +16,7 @@ export function renderSettings(): void {
     ['[data-max-pumps]', String(MAX_PUMPS)],
     ['[data-min-bet]', money(MIN_BET_CENTS)],
     ['[data-max-bet]', money(MAX_BET_CENTS)],
+    ['[data-demo-balance]', money(INITIAL_BALANCE_CENTS)],
     ['[data-rtp-percent]', String(TARGET_RTP_PERCENT)],
     ['[data-bet-step]', money(BET_STEP_CENTS)],
     [

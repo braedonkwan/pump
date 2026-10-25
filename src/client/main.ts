@@ -1,8 +1,11 @@
 import './styles.css';
 import type { GameState } from '../shared/types.js';
 import { GameActions } from './actions.js';
+import { GameAudio } from './audio.js';
+import { wireAudioControls } from './audio-controls.js';
 import { element } from './dom.js';
 import { wireEvents } from './events.js';
+import { wirePresence } from './presence.js';
 import { renderSettings } from './renderers/settings.js';
 import { renderControls, setMessage } from './renderers/controls.js';
 import { GameDialogs } from './renderers/dialogs.js';
@@ -14,7 +17,8 @@ const dialogs = new GameDialogs();
 const renderHistory = createHistoryRenderer((round) =>
   dialogs.showProof(round),
 );
-const world = new FlightWorld(element('#world-scene'), () =>
+const audio = new GameAudio();
+const world = new FlightWorld(element('#world-scene'), audio, () =>
   renderControls(actions, world.isSettling),
 );
 const actions = new GameActions({
@@ -38,5 +42,7 @@ function render(): void {
 }
 
 renderSettings();
+wireAudioControls(audio);
 wireEvents(actions, dialogs);
+wirePresence(actions);
 void actions.connect();

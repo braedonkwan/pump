@@ -10,6 +10,7 @@ import { GameError } from '../src/server/errors.js';
 import { deriveOutcome, sha256 } from '../src/server/fairness.js';
 import { PumpService } from '../src/server/PumpService.js';
 import { seedForPop } from './helpers.js';
+import { INITIAL_BALANCE_CENTS } from '../src/shared/settings.js';
 
 function fixture(context: TestContext, popAtPump = 2) {
   const database = openDatabase(':memory:');
@@ -173,6 +174,111 @@ test('popping loses the bet and settles without a wallet credit', (context) => {
   assert.equal(result.wallet.balanceCents, 999_000);
   assert.equal(result.round.proof?.popAtPump, 1);
   assert.equal(result.history.length, 1);
+});
+
+test('losing the last stake refills the demo wallet once, after settlement', (context) => {
+  const { service, database, playerId, newToken, start } = fixture(context);
+  database
+    .prepare('UPDATE players SET balance_cents = 1000 WHERE id = ?')
+    .run(playerId);
+  const round = start().round!;
+  assert.deepEqual(service.getWallet(playerId), { balanceCents: 0 });
+  const survived = service.pump(playerId, {
+    roundId: round.id,
+    expectedVersion: 0,
+  });
+  assert.equal(survived.round?.status, 'active');
+  assert.deepEqual(survived.wallet, { balanceCents: 0 });
+
+  const popped = service.pump(playerId, {
+    roundId: round.id,
+    expectedVersion: 1,
+  });
+  assert.equal(popped.round?.status, 'popped');
+  assert.equal(popped.round.payoutCents, 0);
+  assert.equal(popped.history[0]?.id, round.id);
+  assert.deepEqual(popped.wallet, {
+    balanceCents: INITIAL_BALANCE_CENTS,
+    refillCents: INITIAL_BALANCE_CENTS,
+  });
+  assert.equal(service.getSession(newToken).playerId, playerId);
+  assert.throws(
+    () => service.pump(playerId, { roundId: round.id, expectedVersion: 1 }),
+    conflict,
+  );
+  for (let read = 0; read < 3; read++)
+    assert.deepEqual(service.getWallet(playerId), {
+      balanceCents: INITIAL_BALANCE_CENTS,
+    });
+  const restored = new PumpService(database).getState(playerId);
+  assert.equal(restored.wallet.balanceCents, INITIAL_BALANCE_CENTS);
+  assert.deepEqual(restored.history, popped.history);
+});
+
+test('loading an existing empty wallet refills it while small positive balances stay unchanged', (context) => {
+  const { service, database, playerId } = fixture(context);
+  const setBalance = database.prepare(
+    'UPDATE players SET balance_cents = ? WHERE id = ?',
+  );
+  for (const balance of [1, 9, 10, 500, INITIAL_BALANCE_CENTS]) {
+    setBalance.run(balance, playerId);
+    assert.deepEqual(service.getWallet(playerId), { balanceCents: balance });
+  }
+  setBalance.run(0, playerId);
+  assert.deepEqual(service.getState(playerId).wallet, {
+    balanceCents: INITIAL_BALANCE_CENTS,
+    refillCents: INITIAL_BALANCE_CENTS,
+  });
+  assert.deepEqual(service.getState(playerId).wallet, {
+    balanceCents: INITIAL_BALANCE_CENTS,
+  });
+});
+
+test('reading a positive wallet does not require a database write', (context) => {
+  const { service, database, playerId } = fixture(context);
+  database.exec('PRAGMA query_only = ON');
+  assert.deepEqual(service.getWallet(playerId), {
+    balanceCents: INITIAL_BALANCE_CENTS,
+  });
+});
+
+test('cashing out a fully staked wallet credits only the payout, with no demo refill', (context) => {
+  const { service, database, playerId, start } = fixture(context);
+  database
+    .prepare('UPDATE players SET balance_cents = 1000 WHERE id = ?')
+    .run(playerId);
+  const round = start().round!;
+  assert.deepEqual(service.getWallet(playerId), { balanceCents: 0 });
+  const request = { roundId: round.id, expectedVersion: 0 };
+  assert.deepEqual(service.cashout(playerId, request).wallet, {
+    balanceCents: 1000,
+  });
+  assert.deepEqual(service.cashout(playerId, request).wallet, {
+    balanceCents: 1000,
+  });
+});
+
+test('a failed refill rolls back the pop and can be retried without extra credit', (context) => {
+  const { service, database, playerId, start } = fixture(context, 1);
+  database
+    .prepare('UPDATE players SET balance_cents = 1000 WHERE id = ?')
+    .run(playerId);
+  const round = start().round!;
+  database.exec(`CREATE TRIGGER reject_refill BEFORE UPDATE OF balance_cents ON players
+    WHEN OLD.balance_cents = 0 AND NEW.balance_cents = ${INITIAL_BALANCE_CENTS}
+    BEGIN SELECT RAISE(ABORT, 'Refill unavailable'); END;`);
+  const request = { roundId: round.id, expectedVersion: 0 };
+  assert.throws(() => service.pump(playerId, request), /Refill unavailable/);
+  const restored = service.getState(playerId);
+  assert.equal(restored.round?.status, 'active');
+  assert.equal(restored.round.version, 0);
+  assert.equal(restored.wallet.balanceCents, 0);
+  database.exec('DROP TRIGGER reject_refill');
+  assert.equal(
+    service.pump(playerId, request).wallet.balanceCents,
+    INITIAL_BALANCE_CENTS,
+  );
+  assert.equal(service.getWallet(playerId).balanceCents, INITIAL_BALANCE_CENTS);
 });
 
 test('the 25th surviving pump pays automatically once and rejects a racing cashout', (context) => {

@@ -1,12 +1,16 @@
 import type { RoundView } from '../../shared/types.js';
 import { MAX_PUMPS } from '../../shared/settings.js';
+import type { GameAudio } from '../audio.js';
 import {
   getBackdropSegments,
   PRELOAD_PUMPS,
   SUMMIT_EFFECTS_START_PUMP,
+  type FlightZone,
 } from '../flight-model.js';
 import type { CameraView } from './camera.js';
 import { find } from './dom.js';
+import { FlightEffects } from './flight-effects.js';
+
 type Scene = ReturnType<typeof getBackdropSegments>[number];
 interface Effect {
   element: HTMLElement;
@@ -18,36 +22,33 @@ interface Effect {
   assetsLoaded: boolean;
 }
 
+// Cull ambient habitats and coordinate the short flight sequences.
 export class WorldEffects {
-  private readonly balloon: HTMLElement;
-  private readonly flight: HTMLElement;
-  private readonly particles: HTMLElement;
   private readonly summit: HTMLElement;
   private readonly effects: Effect[] = [];
   private readonly habitatBounds = new WeakMap<HTMLElement, Scene>();
   private readonly depths = new WeakMap<HTMLElement, number>();
-  private readonly animations = new Set<Animation>();
+  private readonly flightEffects: FlightEffects;
   private readonly reducedMotion = window.matchMedia(
     '(prefers-reduced-motion: reduce)',
   );
-  private motionTimer: ReturnType<typeof setTimeout> | undefined;
-  private settling = false;
-  private settlementId = 0;
+
   constructor(
     private readonly root: HTMLElement,
-    private readonly onSettlementChange: () => void,
+    audio: GameAudio,
+    onSettlementChange: () => void,
   ) {
-    this.balloon = find(root, '#balloon');
-    this.flight = find(root, '#balloon-flight');
-    this.particles = find(root, '#scene-particles');
+    this.flightEffects = new FlightEffects(
+      root,
+      audio,
+      onSettlementChange,
+      this.reducedMotion,
+    );
     this.createAmbience();
     this.summit = this.createSummit();
     const pause = () => {
       root.toggleAttribute('data-paused', document.hidden);
-      for (const animation of this.animations) {
-        if (document.hidden) animation.pause();
-        else if (animation.playState === 'paused') animation.play();
-      }
+      this.flightEffects.pause(document.hidden);
     };
     document.addEventListener('visibilitychange', pause);
     pause();
@@ -61,29 +62,25 @@ export class WorldEffects {
   }
 
   get isSettling(): boolean {
-    return this.settling;
-  }
-  private setSettling(settling: boolean): void {
-    if (this.settling === settling) return;
-    this.settling = settling;
-    this.root.toggleAttribute('data-settling', settling);
-    this.onSettlementChange();
+    return this.flightEffects.isSettling;
   }
 
   reset(): void {
-    this.settlementId++;
-    // Cleanup is unconditional; only creating animations depends on reduced motion.
-    this.clearTransient();
-    this.setSettling(false);
+    this.flightEffects.reset();
   }
 
-  private clearTransient(): void {
-    for (const animation of this.animations) animation.cancel();
-    this.animations.clear();
-    this.particles.replaceChildren();
-    clearTimeout(this.motionTimer);
-    delete this.root.dataset.moving;
+  pump(round: RoundView): void {
+    this.flightEffects.pump(round);
   }
+
+  enterBiome(zone: FlightZone): void {
+    this.flightEffects.enterBiome(zone);
+  }
+
+  settle(round: RoundView): void {
+    this.flightEffects.settle(round);
+  }
+
   private trackEffect(
     element: HTMLElement,
     bottom: number,
@@ -144,145 +141,6 @@ export class WorldEffects {
       'data-active',
       pumps > SUMMIT_EFFECTS_START_PUMP,
     );
-  }
-
-  private animate(
-    element: HTMLElement,
-    frames: Keyframe[],
-    options: KeyframeAnimationOptions,
-  ): Animation {
-    const animation = element.animate(frames, options);
-    this.animations.add(animation);
-    void animation.finished.then(
-      () => this.animations.delete(animation),
-      () => this.animations.delete(animation),
-    );
-    if (document.hidden) animation.pause();
-    return animation;
-  }
-
-  pump(): void {
-    if (this.reducedMotion.matches) return;
-    this.root.dataset.moving = 'true';
-    clearTimeout(this.motionTimer);
-    this.motionTimer = setTimeout(() => delete this.root.dataset.moving, 1000);
-    this.balloon.getAnimations().forEach((animation) => animation.cancel());
-    this.animate(
-      this.balloon,
-      [
-        { scale: '1 1' },
-        { scale: '1.12 .94', offset: 0.28 },
-        { scale: '.97 1.05', offset: 0.62 },
-        { scale: '1 1' },
-      ],
-      { duration: 620, easing: 'cubic-bezier(.22,.7,.25,1)' },
-    );
-    this.animate(
-      find(this.root, '#pump-ripple'),
-      [
-        { opacity: 0.5, transform: 'translate(-50%, -50%) scale(.75)' },
-        { opacity: 0, transform: 'translate(-50%, -50%) scale(1.65)' },
-      ],
-      { duration: 800, easing: 'ease-out' },
-    );
-  }
-
-  settle(round: RoundView): void {
-    this.clearTransient();
-    if (this.reducedMotion.matches) return;
-    const settlementId = ++this.settlementId;
-    this.setSettling(true);
-    const popped = round.status === 'popped';
-    const summit = !popped && round.settlementReason === 'limit';
-    this.animate(
-      this.flight,
-      popped
-        ? [
-            { opacity: 1, transform: 'scale(1)' },
-            { opacity: 0.8, transform: 'scale(1.16)', offset: 0.35 },
-            { opacity: 0, transform: 'scale(.2)' },
-          ]
-        : [
-            { opacity: 1, transform: 'translateY(0) rotate(0)' },
-            {
-              opacity: 1,
-              transform: 'translateY(-90px) rotate(5deg)',
-              offset: 0.35,
-            },
-            { opacity: 0, transform: 'translateY(-540px) rotate(-7deg)' },
-          ],
-      {
-        duration: popped ? 230 : 1500,
-        easing: popped ? 'ease-out' : 'cubic-bezier(.3,0,.4,1)',
-      },
-    );
-
-    this.particles.replaceChildren();
-    for (let index = 0; index < (popped ? 12 : summit ? 44 : 24); index++) {
-      const piece = document.createElement('i');
-      piece.className = popped ? 'balloon-fragment' : 'win-confetti';
-      piece.style.background = summit
-        ? ['#ffe3aa', '#fff8df', '#e4c9ff', '#f2d291'][index % 4]!
-        : popped
-          ? ['#ff9b7d', '#f56560', '#ffcfb5'][index % 3]!
-          : ['#7be3bf', '#ffe2a5', '#cbb7ff', '#f7fbff'][index % 4]!;
-      this.particles.append(piece);
-      const angle = index * 2.39996;
-      const radius = popped ? 90 + (index % 4) * 20 : 140 + (index % 5) * 36;
-      const x = Math.cos(angle) * radius;
-      const y = Math.sin(angle) * radius;
-      const animation = this.animate(
-        piece,
-        [
-          { opacity: 0, transform: 'translate(0, 0) rotate(0) scale(.4)' },
-          {
-            opacity: 1,
-            transform: `translate(${x * 0.6}px, ${y * 0.6}px) rotate(${index * 27}deg) scale(1)`,
-            offset: 0.28,
-          },
-          {
-            opacity: 0,
-            transform: `translate(${x}px, ${y + (popped ? 70 : 170)}px) rotate(${index * 51}deg) scale(.6)`,
-          },
-        ],
-        {
-          duration: popped ? 650 : summit ? 2400 : 1700,
-          delay: popped ? 0 : 150,
-          easing: 'ease-out',
-        },
-      );
-      // Cancelled particles must leave the DOM too, including preference changes.
-      void animation.finished.then(
-        () => piece.remove(),
-        () => piece.remove(),
-      );
-    }
-    if (summit) {
-      this.animate(
-        this.summit,
-        [{ opacity: 0.15 }, { opacity: 0.95, offset: 0.65 }, { opacity: 0.8 }],
-        { duration: 1900, easing: 'ease-out' },
-      );
-    }
-    this.animate(
-      find(this.root, '#result-banner'),
-      [
-        { opacity: 0, transform: 'translate(-50%, -40%) scale(.92)' },
-        { opacity: 1, transform: 'translate(-50%, -50%) scale(1)' },
-      ],
-      {
-        duration: 500,
-        delay: popped ? 120 : 280,
-        easing: 'cubic-bezier(.2,.8,.2,1)',
-        fill: 'backwards',
-      },
-    );
-    // A cancellation (including reduced motion) also releases the UI lock.
-    void Promise.allSettled(
-      [...this.animations].map((animation) => animation.finished),
-    ).then(() => {
-      if (settlementId === this.settlementId) this.setSettling(false);
-    });
   }
 
   private createAmbience(): void {

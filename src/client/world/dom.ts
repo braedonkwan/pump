@@ -1,4 +1,4 @@
-export function find<T extends HTMLElement = HTMLElement>(
+export function find<T extends Element = HTMLElement>(
   root: HTMLElement,
   selector: string,
 ): T {

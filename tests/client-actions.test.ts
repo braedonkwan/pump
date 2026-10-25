@@ -1,15 +1,19 @@
 import assert from 'node:assert/strict';
 import { test, type TestContext } from 'node:test';
 import { GameActions } from '../src/client/actions.js';
-import type { GameRequest } from '../src/client/api.js';
+import { ApiError, type GameRequest } from '../src/client/api.js';
 import { parseBet } from '../src/client/format.js';
 import { openDatabase } from '../src/server/database.js';
 import { PumpService } from '../src/server/PumpService.js';
 import { MAX_PUMPS } from '../src/shared/settings.js';
-import type { RoundRequest, StartRequest } from '../src/shared/types.js';
+import type {
+  RoomState,
+  RoundRequest,
+  StartRequest,
+} from '../src/shared/types.js';
 import { seedForPop } from './helpers.js';
 
-function fixture(context: TestContext) {
+function fixture(context: TestContext, heartbeat?: () => Promise<RoomState>) {
   const database = openDatabase(':memory:');
   context.after(() => database.close());
   const service = new PumpService(database, (id) =>
@@ -44,6 +48,7 @@ function fixture(context: TestContext) {
       calls.push(path);
       return transport(path, body);
     },
+    heartbeat,
   );
   return {
     actions,
@@ -79,6 +84,105 @@ test('client serializes rapid pumps while a response is pending', async (context
   await first;
   assert.equal(actions.state?.round?.pumps, 1);
   assert.equal(actions.busy, false);
+});
+
+test('a full public game displays the server message and can be retried', async (context) => {
+  const { actions, deliver, setTransport, messages } = fixture(context);
+  setTransport(async () => {
+    throw new ApiError('Game full. Please try again shortly.', 503);
+  });
+  await actions.connect();
+  assert.equal(actions.connected, false);
+  assert.equal(messages.at(-1), 'Game full. Please try again shortly.');
+  setTransport(deliver);
+  await actions.connect();
+  assert.equal(actions.connected, true);
+});
+
+test('a full room blocks pumping and new bets while keeping cashout available', async (context) => {
+  const { actions, calls, deliver, setTransport, messages } = fixture(context);
+  await actions.connect();
+  await actions.start(1000);
+  setTransport(async (path, body) => ({
+    ...(await deliver(path, body)),
+    room: { admitted: false, activePlayers: 25, maxPlayers: 25 },
+  }));
+  await actions.connect();
+  const before = calls.length;
+  await actions.play('pump');
+  assert.equal(calls.length, before);
+  assert.match(messages.at(-1)!, /still cash out/);
+  await actions.play('cashout');
+  assert.equal(actions.state?.round?.status, 'cashed_out');
+  const settledCalls = calls.length;
+  await actions.start(1000);
+  assert.equal(calls.length, settledCalls);
+});
+
+test('idle heartbeats apply only to public play and skip recent actions', async (context) => {
+  context.mock.timers.enable({ apis: ['Date'], now: Date.now() });
+  let heartbeats = 0;
+  const room = { admitted: true, activePlayers: 1, maxPlayers: 25 };
+  const { actions, deliver, setTransport } = fixture(context, async () => {
+    heartbeats++;
+    return room;
+  });
+  await actions.connect();
+  context.mock.timers.tick(60_000);
+  await actions.refreshPresence();
+  assert.equal(heartbeats, 0);
+  setTransport(async (path, body) => ({
+    ...(await deliver(path, body)),
+    room,
+  }));
+  await actions.connect();
+  context.mock.timers.tick(54_999);
+  await actions.refreshPresence();
+  assert.equal(heartbeats, 0);
+  context.mock.timers.tick(1);
+  await actions.refreshPresence();
+  assert.equal(heartbeats, 1);
+  context.mock.timers.tick(30_000);
+  await actions.start(1000);
+  context.mock.timers.tick(30_000);
+  await actions.refreshPresence();
+  assert.equal(heartbeats, 1);
+});
+
+test('a late heartbeat cannot replace a newer game action', async (context) => {
+  context.mock.timers.enable({ apis: ['Date'], now: Date.now() });
+  let release!: (room: RoomState) => void;
+  const pending = new Promise<RoomState>((resolve) => {
+    release = resolve;
+  });
+  const { actions, deliver, setTransport } = fixture(context, () => pending);
+  setTransport(async (path, body) => ({
+    ...(await deliver(path, body)),
+    room: { admitted: true, activePlayers: 1, maxPlayers: 25 },
+  }));
+  await actions.connect();
+  await actions.start(1000);
+  context.mock.timers.tick(60_000);
+  const heartbeat = actions.refreshPresence();
+  await actions.play('pump');
+  release({ admitted: false, activePlayers: 25, maxPlayers: 25 });
+  await heartbeat;
+  assert.equal(actions.state?.round?.pumps, 1);
+  assert.equal(actions.state?.room?.admitted, true);
+});
+
+test('rate-limit errors remain visible when the recovery request is also throttled', async (context) => {
+  const { actions, messages, setTransport } = fixture(context);
+  await actions.connect();
+  setTransport(async () => {
+    throw new ApiError(
+      'Too many requests. Please wait a moment and try again.',
+      429,
+    );
+  });
+  await actions.start(1000);
+  assert.equal(actions.connected, false);
+  assert.match(messages.at(-1)!, /Too many requests/);
 });
 
 test('a lost pump response restores the committed result before another pump', async (context) => {

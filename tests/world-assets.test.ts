@@ -52,12 +52,3 @@ test('the three eight-frame sprite atlases retain alpha and square frame geometr
     );
   }
 });
-
-test('the final world has a portrait composition for phones', () => {
-  const scenes = getBackdropSegments(3000);
-  assert.equal(scenes.filter((scene) => scene.mobileSrc).length, 1);
-  const final = scenes.at(-1)!;
-  assert.equal(final.id, 'astral-crown');
-  const portrait = readPng(final.mobileSrc!);
-  assert.equal(portrait.width / portrait.height, 2 / 3);
-});

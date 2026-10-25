@@ -1,59 +1,136 @@
 .controls-panel {
+  position: relative;
   display: flex;
   flex-direction: column;
-  border: 1px solid #ffffff0d;
+  border: 1px solid #adc6df24;
   border-radius: var(--radius);
-  background: linear-gradient(155deg, #171e2b, #121823);
-  padding: 24px;
+  background:
+    radial-gradient(ellipse at 5% 0%, #9bf2d110, transparent 48%),
+    linear-gradient(155deg, #1a2535, #101925 75%);
+  padding: 22px;
   min-width: 0;
+  box-shadow:
+    inset 0 1px #e0fff013,
+    0 16px 36px #02091526;
+}
+.controls-panel::before {
+  content: '';
+  position: absolute;
+  left: 22px;
+  right: 22px;
+  top: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    #9bf2d180,
+    #f2cf8940,
+    transparent
+  );
+}
+.controls-title {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+.controls-emblem {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  color: #b8f5db;
+  border: 1px solid #9bf2d133;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #9bf2d118, #9bf2d105);
+  box-shadow: inset 0 1px #d8ffeb14;
+}
+.controls-emblem .icon {
+  width: 24px;
+  height: 24px;
+}
+.controls-title .overline {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 1.2px;
+  color: #a9bfc5;
+  margin-bottom: 3px;
 }
 .controls-heading {
   display: flex;
   justify-content: space-between;
   gap: 10px;
   align-items: center;
-  margin-bottom: 27px;
+  margin-bottom: 22px;
 }
 .controls-heading h2 {
   font-family: 'Manrope', sans-serif;
-  font-size: 16px;
-  font-weight: 650;
+  font-size: 21px;
+  font-weight: 750;
   letter-spacing: -0.3px;
 }
 .manual-badge {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  border: 1px solid #ffffff0b;
-  background: #ffffff03;
-  border-radius: 4px;
-  color: #8d98ac;
-  font-size: 6px;
-  letter-spacing: 0.8px;
-  padding: 5px 6px;
+  gap: 6px;
+  flex-shrink: 0;
+  border: 1px solid #9bf2d126;
+  background: #9bf2d109;
+  border-radius: 20px;
+  color: #c2e7d9;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  padding: 7px 9px;
 }
 .manual-badge i {
-  width: 3px;
-  height: 3px;
-  background: #8a9b96;
+  width: 5px;
+  height: 5px;
+  background: #9bf2d1;
+  box-shadow: 0 0 7px #9bf2d144;
+}
+.manual-badge[data-state='offline'],
+.manual-badge[data-state='connecting'],
+.manual-badge[data-state='landing'] {
+  color: #f4d9a8;
+  border-color: #f4d9a82b;
+  background: #f4d9a808;
+}
+.manual-badge[data-state='offline'] i,
+.manual-badge[data-state='connecting'] i,
+.manual-badge[data-state='landing'] i {
+  background: #f4d9a8;
   box-shadow: none;
+}
+.bet-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 5px 10px;
+  margin-bottom: 10px;
 }
 label[for='bet'] {
   display: block;
-  color: #a8b2c7;
+  color: #d3deed;
+  font-size: 13px;
+  font-weight: 600;
+}
+.bet-balance {
+  color: #adbed3;
   font-size: 12px;
-  margin-bottom: 9px;
-  font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }
 .bet-field {
   display: flex;
   align-items: center;
-  padding: 14px 12px;
-  border: 1px solid #ffffff17;
-  border-radius: 8px;
-  background: #0d131f;
-  gap: 9px;
-  box-shadow: inset 0 1px 3px #00000015;
+  padding: 6px;
+  border: 1px solid #bacce02e;
+  border-radius: 11px;
+  background: #0b1422;
+  gap: 6px;
+  box-shadow: inset 0 2px 6px #0208104d;
   transition:
     border-color 0.2s,
     box-shadow 0.2s;
@@ -62,9 +139,43 @@ label[for='bet'] {
   border-color: #9bf2d175;
   box-shadow: 0 0 0 3px #9bf2d108;
 }
+.bet-field.has-error {
+  border-color: #ef9f8d99;
+  box-shadow: 0 0 0 3px #ef9f8d0a;
+}
+.bet-step {
+  display: grid;
+  place-items: center;
+  flex: 0 0 34px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid #c5dcf025;
+  border-radius: 7px;
+  background: linear-gradient(#28374a, #1b293c);
+  color: #e4f1ef;
+  box-shadow:
+    inset 0 1px #ffffff0c,
+    0 2px 0 #02091455;
+  font-size: 23px;
+  line-height: 1;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    transform 0.15s;
+}
+.bet-step:hover:enabled {
+  background: #293f46;
+  color: #b2f8dc;
+}
+.bet-step:active:enabled {
+  transform: scale(0.94);
+}
+.bet-step:disabled {
+  opacity: 0.35;
+}
 .bet-currency {
-  color: #78849b;
-  font-size: 17px;
+  color: #b1c5d5;
+  font-size: 15px;
 }
 .bet-field input {
   width: 100%;
@@ -74,30 +185,76 @@ label[for='bet'] {
   color: #f4f7ff;
   border: 0;
   font-family: 'Manrope', sans-serif;
-  font-size: 21px;
+  font-size: 20px;
   letter-spacing: -0.6px;
   font-weight: 650;
   outline: none;
+  font-variant-numeric: tabular-nums;
 }
 .bet-field input:disabled {
   opacity: 0.6;
 }
-.input-currency {
-  font-size: 8px;
-  letter-spacing: 0.5px;
-  color: #5f6c85;
-  background: #1a2331;
-  padding: 4px 5px;
-  border-radius: 3px;
+.bet-shortcuts {
+  display: grid;
+  gap: 7px;
+  margin-top: 10px;
+}
+.bet-adjustments,
+.bet-presets {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+.bet-adjustments > button,
+.bet-presets > button {
+  min-width: 0;
+  min-height: 38px;
+  padding: 6px 3px;
+  border: 1px solid #bdd2eb26;
+  border-radius: 7px;
+  background: linear-gradient(#24324799, #1b293b99);
+  color: #c1cfe1;
+  font-size: 13px;
+  font-weight: 600;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+.bet-adjustments > button:hover:enabled,
+.bet-presets > button:hover:enabled {
+  border-color: #9bf2d14d;
+  background: #9bf2d10c;
+  color: #d5ffee;
+}
+.bet-presets > button[aria-pressed='true'] {
+  border-color: #9bf2d18c;
+  background: #9bf2d11c;
+  color: #d3ffea;
+  box-shadow: inset 0 -2px #9bf2d155;
+}
+.bet-adjustments > button:disabled,
+.bet-presets > button:disabled {
+  opacity: 0.35;
+}
+body.has-active-round .bet-shortcuts {
+  display: none;
+}
+.bet-error {
+  margin-top: 9px;
+  color: #efb3a5;
+  font-size: 12px;
+  line-height: 1.5;
 }
 .field-help {
-  color: #8390a7;
-  font-size: 10px;
+  color: #aebdd0;
+  font-size: 12px;
+  line-height: 1.55;
   margin-top: 9px;
 }
 .field-help > span:not([data-min-bet], [data-max-bet], [data-bet-step]) {
   padding: 0 5px;
-  color: #35425c;
+  color: #9baec2;
 }
 .primary-button {
   display: flex;
@@ -105,17 +262,18 @@ label[for='bet'] {
   align-items: center;
   justify-content: space-between;
   gap: 15px;
-  padding: 17px 16px;
-  background: linear-gradient(120deg, #b2f8dc, #89eac6);
-  color: #103c2c;
+  min-height: 56px;
+  padding: 13px 15px;
+  background: linear-gradient(130deg, #c1ffe3, #8ee8bf);
+  color: #123b2d;
   border: 1px solid #c3ffe17d;
-  border-radius: 8px;
-  font-size: 14px;
+  border-radius: 11px;
+  font-size: 15px;
   font-weight: 700;
   box-shadow:
-    0 3px 0 #36635055,
-    inset 0 1px #ffffff60,
-    0 4px 22px #9bf2d10b;
+    0 4px 0 #3a715b,
+    inset 0 1px #ffffff99,
+    0 8px 20px #9bf2d114;
   transition:
     filter 0.2s,
     transform 0.2s,
@@ -125,12 +283,12 @@ label[for='bet'] {
   filter: brightness(1.07);
   transform: translateY(-1px);
   box-shadow:
-    0 4px 0 #36635055,
+    0 5px 0 #3a715b,
     0 7px 25px #9bf2d11a;
 }
 .primary-button:active:enabled {
-  transform: translateY(1px);
-  box-shadow: 0 1px 0 #36635055;
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #3a715b;
 }
 .primary-button:disabled {
   opacity: 0.5;
@@ -138,68 +296,106 @@ label[for='bet'] {
   box-shadow: none;
 }
 .primary-button .icon {
-  width: 19px;
-  height: 19px;
+  width: 32px;
+  height: 32px;
+  padding: 7px;
+  flex: 0 0 auto;
+  border: 1px solid #123b2d1f;
+  border-radius: 8px;
+  background: #123b2d0b;
   stroke-width: 1.8;
 }
 #start-button {
-  margin-top: 20px;
+  margin-top: 16px;
 }
 .round-actions {
   display: grid;
-  gap: 9px;
-  margin-top: 20px;
+  gap: 13px;
+  margin-top: 16px;
 }
 .pump-button > span {
+  min-width: 0;
   display: grid;
-  gap: 4px;
+  gap: 5px;
   text-align: left;
 }
 .pump-button small {
-  color: #315b49;
-  font-size: 8px;
+  color: #285341;
+  font-size: 12px;
   font-weight: 500;
 }
 .cashout-button {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 8px;
-  background: #9bf2d10b;
-  border: 1px solid #9bf2d12c;
-  color: #b5edda;
-  padding: 14px 13px;
-  font-size: 11px;
-  border-radius: 8px;
+  gap: 4px 10px;
+  background: linear-gradient(125deg, #f9dda5, #eabf73);
+  border: 1px solid #ffedc2;
+  color: #3c2a12;
+  padding: 13px 15px;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  border-radius: 11px;
+  box-shadow:
+    0 4px 0 #846337,
+    inset 0 1px #fff2d080;
   transition:
     background 0.2s,
-    border-color 0.2s;
+    border-color 0.2s,
+    transform 0.2s,
+    box-shadow 0.2s;
 }
 .cashout-button > strong {
-  margin-left: auto;
-  font-size: 13px;
+  grid-row: 2;
+  font-family: 'Manrope', sans-serif;
+  font-size: 25px;
   font-variant-numeric: tabular-nums;
-  font-weight: 600;
+  font-weight: 800;
+  letter-spacing: -0.7px;
 }
 .cashout-button > .icon {
-  width: 12px;
-  height: 12px;
-  color: #9bf2d175;
+  grid-column: 2;
+  grid-row: 1 / 3;
+  width: 21px;
+  height: 21px;
+  color: #6b4c24;
 }
 .cashout-button:hover:enabled {
-  background: #9bf2d118;
-  border-color: #9bf2d155;
+  background: linear-gradient(125deg, #ffe6b5, #f2c97f);
+  border-color: #fff0d0;
+  transform: translateY(-1px);
+  box-shadow:
+    0 5px 0 #846337,
+    0 7px 22px #eabf731a;
+}
+.cashout-button:active:enabled {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #846337;
 }
 .cashout-button:disabled {
-  opacity: 0.4;
+  opacity: 0.5;
+  box-shadow: none;
 }
 .payout-card {
+  position: relative;
   container-type: inline-size;
   padding: 17px 15px 15px;
-  border: 1px solid #9bf2d119;
-  border-radius: 9px;
-  background: linear-gradient(130deg, #1c333140, #1c2e2c15);
-  margin-top: 25px;
+  border: 1px solid #9bf2d12b;
+  border-radius: 12px;
+  background: linear-gradient(130deg, #1b36384d, #0b182999);
+  margin-top: 21px;
+  box-shadow: inset 0 1px #d5fff20a;
+}
+.payout-card::before {
+  content: '';
+  position: absolute;
+  top: 17px;
+  bottom: 17px;
+  left: -1px;
+  width: 3px;
+  background: #9bf2d1;
+  border-radius: 3px;
 }
 .payout-card-heading {
   display: flex;
@@ -207,19 +403,19 @@ label[for='bet'] {
   align-items: center;
 }
 .payout-card .overline {
-  font-size: 7px;
-  letter-spacing: 1.3px;
-  color: #8faeaa;
+  font-size: 11px;
+  letter-spacing: 0.9px;
+  color: #c0d5d2;
 }
 .payout-card .icon {
   width: 13px;
   height: 13px;
-  color: #7cb5a08c;
+  color: #a8d9c5;
 }
 .payout-card > strong {
   display: block;
   font-family: 'Manrope', sans-serif;
-  font-size: clamp(14px, calc(160cqw / var(--amount-length, 7)), 31px);
+  font-size: clamp(22px, calc(160cqw / var(--amount-length, 7)), 36px);
   letter-spacing: -1px;
   font-weight: 700;
   color: #e8fff6;
@@ -229,63 +425,108 @@ label[for='bet'] {
 .payout-card-detail {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   margin-top: 8px;
   min-height: 11px;
 }
 .payout-card-detail > span {
-  font-size: 10px;
-  color: #8eada8;
+  font-size: 12px;
+  color: #b7cecb;
 }
 #net-return {
-  color: #97d2b9;
+  color: #b3f3d4;
   white-space: nowrap;
 }
 #net-return.is-negative {
-  color: #bba09a;
+  color: #f0b9a8;
 }
 .risk-card {
-  margin-top: 23px;
-  padding-top: 23px;
-  border-top: 1px solid #ffffff0a;
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid #d5bb8c26;
+  border-radius: 12px;
+  background: linear-gradient(130deg, #342e231f, #0b142266);
 }
 .risk-heading {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
-  color: #a2adc2;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #c5d0e0;
+}
+.risk-heading > span {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.risk-heading .icon {
+  width: 23px;
+  height: 23px;
+  color: #e4bf85;
+  flex-shrink: 0;
 }
 .risk-heading > strong {
-  font-size: 13px;
-  color: #e3ac93;
-  font-weight: 500;
+  font-family: 'Manrope', sans-serif;
+  font-size: 27px;
+  color: #f3d29f;
+  font-weight: 750;
+  letter-spacing: -0.8px;
   font-variant-numeric: tabular-nums;
 }
 .risk-track {
-  height: 4px;
-  background: #2b2c38;
+  position: relative;
+  height: 12px;
+  background: #060e1cb3;
+  border: 1px solid #b4c9dc2e;
   border-radius: 4px;
   margin: 12px 0 9px;
   overflow: hidden;
+  box-shadow: inset 0 1px 3px #02081266;
+}
+.risk-track::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    90deg,
+    transparent 0,
+    transparent calc(5% - 1px),
+    #0c1728cc calc(5% - 1px),
+    #0c1728cc 5%
+  );
+  pointer-events: none;
 }
 #risk-fill {
   height: 100%;
   width: 10%;
-  background: linear-gradient(90deg, #d5bd95, #f18d83);
-  box-shadow: 0 0 12px #eb8e8940;
-  border-radius: inherit;
-  transition: width 0.5s;
+  background: linear-gradient(90deg, #eac584, #ffa18b);
+  box-shadow: inset -2px 0 #ffe9bd;
+  transition: width 0.35s ease-out;
+}
+.risk-axis {
+  display: flex;
+  justify-content: space-between;
+  color: #acb9cd;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.risk-card.is-complete .risk-heading > strong,
+.risk-card.is-complete .risk-heading .icon {
+  color: #b0bfd2;
 }
 .risk-scale {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 5px;
-  color: #8291a9;
-  font-size: 9px;
+  color: #b5c1d5;
+  font-size: 12px;
+  line-height: 1.5;
+  margin-top: 10px;
 }
 .risk-scale .icon {
   width: 11px;
@@ -293,11 +534,11 @@ label[for='bet'] {
 }
 .flight-note {
   display: flex;
-  gap: 10px;
-  margin-top: 27px;
+  gap: 9px;
+  margin-top: 18px;
 }
 .flight-note-icon {
-  color: #5a716f;
+  color: #a4bdb8;
   padding-top: 2px;
 }
 .flight-note-icon .icon {
@@ -305,12 +546,12 @@ label[for='bet'] {
   height: 16px;
 }
 .flight-note > p {
-  font-size: 11px;
-  line-height: 1.85;
-  color: #8391a8;
+  font-size: 12px;
+  line-height: 1.65;
+  color: #b4c2d6;
 }
 .message {
-  font-size: 10px;
+  font-size: 13px;
   line-height: 1.7;
   color: #efb3a5;
   margin-top: 16px;
@@ -325,7 +566,7 @@ label[for='bet'] {
   text-align: left;
   color: var(--mint);
   text-decoration: underline;
-  font-size: 10px;
+  font-size: 13px;
   margin-top: 5px;
 }
 .controls-footer {
@@ -333,186 +574,14 @@ label[for='bet'] {
   gap: 7px;
   justify-content: center;
   align-items: center;
-  color: #48576e;
-  font-size: 8px;
-  margin-top: auto;
-  padding-top: 25px;
+  color: #a4b6cb;
+  font-size: 12px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid #ffffff0d;
 }
 .controls-footer .icon {
   width: 12px;
   height: 12px;
-  color: #5b7c70;
-}
-@media (min-width: 1550px) {
-  .controls-panel {
-    padding: 27px;
-  }
-  .controls-heading h2 {
-    font-size: 15px;
-  }
-}
-@media (max-width: 1150px) {
-  .controls-panel {
-    padding: 20px;
-  }
-}
-@media (max-width: 900px) {
-  .controls-panel {
-    padding: 18px;
-  }
-  .controls-heading h2 {
-    font-size: 12px;
-  }
-}
-@media (max-width: 760px) {
-  .controls-panel {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    padding: 19px;
-    gap: 18px 16px;
-  }
-  .controls-heading {
-    grid-column: 1 / -1;
-    margin-bottom: 0;
-  }
-  .controls-heading h2 {
-    font-size: 14px;
-  }
-  .manual-badge {
-    font-size: 6px;
-  }
-  #bet-form {
-    grid-column: 1;
-    grid-row: 2 / 4;
-  }
-  .bet-field {
-    padding: 11px;
-  }
-  .bet-field input {
-    font-size: 19px;
-  }
-  .field-help {
-    font-size: 7px;
-  }
-  .field-help > span:not([data-min-bet], [data-max-bet], [data-bet-step]) {
-    padding: 0 3px;
-  }
-  #start-button {
-    margin-top: 14px;
-    padding: 14px 10px;
-    gap: 5px;
-    font-size: 10px;
-  }
-  .payout-card {
-    margin-top: 0;
-    padding: 14px 12px;
-    grid-column: 2;
-    grid-row: 2;
-    align-self: start;
-  }
-  .payout-card > strong {
-    font-size: clamp(14px, calc(160cqw / var(--amount-length, 7)), 27px);
-  }
-  .payout-card .overline {
-    font-size: 6px;
-    letter-spacing: 1px;
-  }
-  .payout-card-heading .icon {
-    display: none;
-  }
-  .payout-card-detail {
-    display: grid;
-    gap: 5px;
-  }
-  .payout-card-detail > span {
-    font-size: 7px;
-  }
-  .risk-card {
-    margin: 0;
-    padding: 0;
-    border: 0;
-    grid-column: 2;
-    grid-row: 3;
-  }
-  .risk-heading {
-    font-size: 8px;
-    gap: 5px;
-  }
-  .risk-heading > strong {
-    font-size: 10px;
-  }
-  .risk-track {
-    margin-top: 9px;
-  }
-  .risk-scale {
-    display: none;
-  }
-  .flight-note {
-    grid-column: 1 / -1;
-    margin-top: 0;
-    padding-top: 14px;
-    border-top: 1px solid #ffffff09;
-  }
-  .flight-note > p {
-    font-size: 9px;
-  }
-  .controls-footer {
-    display: none;
-  }
-  .message {
-    grid-column: 1 / -1;
-    margin: 0;
-  }
-  .reconnect-button {
-    grid-column: 1 / -1;
-    margin: 0;
-  }
-  .round-actions {
-    grid-column: 1;
-    grid-row: 4;
-    margin: 0;
-  }
-  body.has-active-round .round-actions {
-    position: fixed;
-    z-index: 20;
-    bottom: max(10px, env(safe-area-inset-bottom));
-    left: 12px;
-    right: 12px;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    padding: 8px;
-    border: 1px solid #ffffff17;
-    border-radius: 13px;
-    background: #121a2bea;
-    box-shadow: 0 4px 30px #0008;
-    backdrop-filter: blur(20px);
-  }
-  body.has-active-round {
-    padding-bottom: 88px;
-  }
-  body.has-active-round .round-actions .primary-button {
-    padding: 12px 13px;
-    font-size: 11px;
-  }
-  body.has-active-round .round-actions .cashout-button {
-    padding: 12px;
-    font-size: 10px;
-    gap: 4px;
-  }
-  body.has-active-round .cashout-button > strong {
-    font-size: 12px;
-  }
-  body.has-active-round .cashout-button > .icon {
-    display: none;
-  }
-}
-@media (max-width: 380px) {
-  .controls-panel {
-    gap: 14px 12px;
-    padding: 16px;
-  }
-  .input-currency {
-    display: none;
-  }
+  color: #a2d4bb;
 }

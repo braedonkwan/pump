@@ -32,7 +32,8 @@ const serviceOptions = { disablePopping: false };
 const server = createApp(
   new PumpService(
     database,
-    (id) => seedForPop(id, [26, 2, 26, 26, 25, 26, 1, 1][roundNumber++] ?? 26),
+    (id) =>
+      seedForPop(id, [26, 2, 26, 26, 25, 26, 1, 1, 1][roundNumber++] ?? 26),
     serviceOptions,
   ),
 );
@@ -150,6 +151,24 @@ try {
       throw new Error(JSON.stringify(result.exceptionDetails));
     return result.result.value;
   }
+  async function unlockAudio() {
+    await send('Input.dispatchKeyEvent', {
+      type: 'keyDown',
+      key: 'ArrowRight',
+      code: 'ArrowRight',
+      windowsVirtualKeyCode: 39,
+    });
+    await send('Input.dispatchKeyEvent', {
+      type: 'keyUp',
+      key: 'ArrowRight',
+      code: 'ArrowRight',
+      windowsVirtualKeyCode: 39,
+    });
+    await waitFor(
+      "window.reviewAudio.contexts[0]?.state === 'running'",
+      'audio unlocks after a real gesture',
+    );
+  }
   async function waitFor(expression, label) {
     for (let i = 0; i < 150; i++) {
       if (await evaluate(expression)) return;
@@ -163,10 +182,11 @@ try {
     );
     throw new Error('Timed out: ' + label);
   }
-  async function screenshot(name, fullPage = false) {
+  async function screenshot(name) {
     const result = await send('Page.captureScreenshot', {
       format: 'png',
-      captureBeyondViewport: fullPage,
+      // Full capture repaints static layers after headless viewport resizing.
+      captureBeyondViewport: true,
     });
     await writeFile(
       `test-results/stage3-${name}.png`,
@@ -174,11 +194,21 @@ try {
     );
   }
   async function pump(count) {
+    if (await evaluate("window.reviewAudio.contexts[0]?.state !== 'running'"))
+      await unlockAudio();
     await evaluate("document.querySelector('#pump-button').click()");
     await waitFor(
       `Number(document.querySelector('#pump-count').textContent) === ${count} && (!document.querySelector('#pump-button').disabled || document.querySelector('#world-scene').dataset.status !== 'active')`,
       'pump ' + count,
     );
+  }
+  async function setViewport(width, height) {
+    await send('Emulation.setDeviceMetricsOverride', {
+      width,
+      height,
+      deviceScaleFactor: 1,
+      mobile: false,
+    });
   }
   async function assertBackdropRetry(biomeId, width, height) {
     const selector = `.world-biome[data-biome="${biomeId}"]`;
@@ -189,20 +219,17 @@ try {
     const failure = await evaluate(`(async () => {
       const backdrop = document.querySelector('${selector}');
       const image = backdrop.querySelector('img');
-      const source = backdrop.querySelector('source');
       const previousSrc = image.currentSrc;
       // A real decode failure exercises the loader without an expected HTTP 404.
       const invalidImage = 'data:image/png;base64,aW52YWxpZC1pbWFnZS1kYXRh';
       await new Promise(resolve => {
         image.addEventListener('error', resolve, { once: true });
-        if (source) source.srcset = invalidImage;
         image.src = invalidImage;
       });
       return {
         previousSrc,
         loaded: backdrop.classList.contains('is-loaded'),
         hasSrc: image.hasAttribute('src'),
-        hasSrcset: Boolean(source?.hasAttribute('srcset')),
       };
     })()`);
     assert.equal(
@@ -211,15 +238,9 @@ try {
       'A failed backdrop clears its loaded state',
     );
     assert.equal(failure.hasSrc, false);
-    assert.equal(failure.hasSrcset, false);
 
     // Resize invokes the normal camera/geometry path and retries the same image.
-    await send('Emulation.setDeviceMetricsOverride', {
-      width: width + 1,
-      height,
-      deviceScaleFactor: 1,
-      mobile: width < 760,
-    });
+    await setViewport(width + 1, height);
     await waitFor(
       `(() => { const image = document.querySelector('${selector} img'); return image.complete && image.naturalWidth > 0; })()`,
       `${biomeId} retry finishes`,
@@ -234,18 +255,13 @@ try {
     assert.equal(
       await evaluate(`document.querySelector('${selector} img').currentSrc`),
       failure.previousSrc,
-      'Retry restores the correct desktop or portrait asset',
+      'Retry restores the correct scene image',
     );
     await waitFor(
       `Number(getComputedStyle(document.querySelector('${selector} img')).opacity) === 1`,
       `${biomeId} recovered artwork becomes visible`,
     );
-    await send('Emulation.setDeviceMetricsOverride', {
-      width,
-      height,
-      deviceScaleFactor: 1,
-      mobile: width < 760,
-    });
+    await setViewport(width, height);
   }
   async function assertCompletedRisk() {
     assert.equal(
@@ -260,16 +276,46 @@ try {
       await evaluate("document.querySelector('#risk-fill').style.width"),
       '0%',
     );
+    assert.equal(
+      await evaluate(
+        "document.querySelector('#risk-gauge').getAttribute('aria-valuetext')",
+      ),
+      'Round complete',
+    );
   }
   await send('Runtime.enable');
   await send('Page.enable');
   await send('Network.enable');
-  await send('Emulation.setDeviceMetricsOverride', {
-    width: 1440,
-    height: 1080,
-    deviceScaleFactor: 1,
-    mobile: false,
+  await send('Page.addScriptToEvaluateOnNewDocument', {
+    source: `(() => {
+      const NativeContext = window.AudioContext;
+      const audio = window.reviewAudio = {
+        contexts: [], gains: [], buffers: [], starts: [], active: new Set(),
+      };
+      window.AudioContext = class extends NativeContext {
+        constructor(...args) { super(...args); audio.contexts.push(this); }
+        createGain() {
+          const gain = super.createGain(); audio.gains.push(gain); return gain;
+        }
+        async decodeAudioData(bytes) {
+          const buffer = await super.decodeAudioData(bytes);
+          audio.buffers.push(buffer); return buffer;
+        }
+        createBufferSource() {
+          const node = super.createBufferSource();
+          const start = node.start.bind(node);
+          node.start = (...args) => {
+            audio.starts.push({loop: node.loop, duration: node.buffer?.duration,
+              at: performance.now(), args});
+            audio.active.add(node); start(...args);
+          };
+          node.addEventListener('ended', () => audio.active.delete(node));
+          return node;
+        }
+      };
+    })()`,
   });
+  await setViewport(1440, 1080);
   await send('Page.navigate', { url: base });
   await waitFor(
     "document.querySelector('#start-button')?.disabled === false",
@@ -345,9 +391,87 @@ try {
     await evaluate("document.querySelector('#environment-name').textContent"),
     'The meadow',
   );
-  await screenshot('pump-desktop-ground', true);
+  await screenshot('pump-desktop-ground');
   console.log(
     'PASS: initial ground position, artwork, local fonts, desktop render',
+  );
+  await waitFor(
+    'window.reviewAudio.buffers.length === 4',
+    'sound effects decode',
+  );
+  assert.equal(await evaluate('window.reviewAudio.starts.length'), 0);
+  assert.equal(
+    await evaluate(
+      "performance.getEntriesByType('resource').some(r => r.name.includes('background-music'))",
+    ),
+    false,
+    'Music waits for interaction before downloading or playing',
+  );
+  await unlockAudio();
+  await waitFor(
+    'window.reviewAudio.starts.some(source => source.loop)',
+    'background music starts',
+  );
+  await waitFor(
+    'Math.abs(window.reviewAudio.gains[0].gain.value - 0.065) < 0.001',
+    'music finishes fading to its normal level',
+  );
+  const audioMix = await evaluate(`(() => {
+    const audio = window.reviewAudio;
+    const volume = audio.gains[0].gain.value;
+    const levels = audio.buffers.map(buffer => {
+      const limit = Math.min(buffer.length, Math.floor(buffer.sampleRate * 2.2));
+      const samples = buffer.getChannelData(0);
+      let sum = 0;
+      for(let i = 0; i < limit; i++) sum += samples[i] ** 2;
+      return {duration:buffer.duration, rms:Math.sqrt(sum / limit)};
+    });
+    return {volume, levels, musicLoops: audio.starts.filter(source => source.loop).length};
+  })()`);
+  assert.ok(audioMix.volume > 0 && audioMix.volume < 0.08);
+  assert.equal(audioMix.musicLoops, 1);
+  const levelFor = (duration) =>
+    audioMix.levels.find((level) => Math.abs(level.duration - duration) < 0.03)
+      .rms;
+  assert.ok(
+    levelFor(14.22) * audioMix.volume <
+      Math.min(
+        levelFor(2.178) * 0.4,
+        levelFor(0.544) * 0.44,
+        levelFor(4.446) * 0.8,
+        levelFor(3.785) * 0.56,
+      ) *
+        0.5,
+    'Music is at least 6 dB below even the quietest supplied effect',
+  );
+  report.audioMix = audioMix;
+  for (const selector of ['#music-toggle', '#sound-toggle'])
+    await evaluate(`document.querySelector('${selector}').click()`);
+  await delay(160);
+  assert.equal(await evaluate('window.reviewAudio.active.size'), 0);
+  await send('Page.reload');
+  await waitFor(
+    "document.querySelector('#start-button')?.disabled === false",
+    'muted settings restore',
+  );
+  for (const selector of ['#music-toggle', '#sound-toggle'])
+    assert.equal(
+      await evaluate(
+        `document.querySelector('${selector}').getAttribute('aria-pressed')`,
+      ),
+      'false',
+    );
+  assert.equal(await evaluate('window.reviewAudio.starts.length'), 0);
+  await evaluate("document.querySelector('#sound-toggle').click()");
+  await unlockAudio();
+  assert.equal(await evaluate('window.reviewAudio.starts.length'), 0);
+  await evaluate("document.querySelector('#music-toggle').click()");
+  await waitFor(
+    'window.reviewAudio.starts.filter(source => source.loop).length === 1',
+    'music can be enabled independently',
+  );
+  console.log(
+    'PASS: actual audio decoding, gesture-only music, quiet mix, independent mute controls, and persisted settings',
   );
   await assertBackdropRetry('meadow', 1440, 1080);
   console.log(
@@ -366,15 +490,15 @@ try {
     "document.querySelector('#bet').value = '0.09'; document.querySelector('#bet-form').requestSubmit()",
   );
   assert.match(
-    await evaluate("document.querySelector('#message').textContent"),
-    /Enter a bet/,
+    await evaluate("document.querySelector('#bet-error').textContent"),
+    /Minimum bet/,
   );
   for (const invalidBet of ['0.11', '0.13', '0.99', '1.01']) {
     await evaluate(
       `document.querySelector('#bet').value = '${invalidBet}'; document.querySelector('#bet-form').requestSubmit()`,
     );
     assert.match(
-      await evaluate("document.querySelector('#message').textContent"),
+      await evaluate("document.querySelector('#bet-error').textContent"),
       /\$0\.10 increments/,
     );
   }
@@ -384,12 +508,160 @@ try {
     ),
     null,
   );
+  const setBet = (value) =>
+    evaluate(`(() => {
+      const input = document.querySelector('#bet');
+      input.value = ${JSON.stringify(value)};
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    })()`);
+  const clickAdjustment = (adjustment) =>
+    evaluate(
+      `document.querySelector('[data-bet-adjust="${adjustment}"]').click()`,
+    );
+  const betValue = () => evaluate("document.querySelector('#bet').value");
+  await evaluate('document.querySelector(\'[data-bet-preset="500"]\').click()');
+  assert.equal(await betValue(), '5.00');
+  assert.equal(
+    await evaluate(
+      "document.querySelector('[data-bet-preset=\"500\"]').getAttribute('aria-pressed')",
+    ),
+    'true',
+  );
+  await clickAdjustment('increase');
+  assert.equal(await betValue(), '5.10');
+  await clickAdjustment('decrease');
+  assert.equal(await betValue(), '5.00');
+  await setBet('1.30');
+  await clickAdjustment('half');
+  assert.equal(await betValue(), '0.60');
+  await clickAdjustment('double');
+  assert.equal(await betValue(), '1.20');
+  await clickAdjustment('min');
+  assert.equal(await betValue(), '0.10');
+  assert.equal(
+    await evaluate(
+      "document.querySelector('[data-bet-adjust=decrease]').disabled",
+    ),
+    true,
+  );
+  await evaluate(
+    "document.querySelector('#bet').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true }))",
+  );
+  assert.equal(await betValue(), '0.20');
+  await evaluate(
+    "document.querySelector('#bet').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }))",
+  );
+  assert.equal(await betValue(), '0.10');
+  await setBet('$1,000.00');
+  await evaluate(
+    "document.querySelector('#bet').dispatchEvent(new FocusEvent('blur'))",
+  );
+  assert.equal(await betValue(), '1000.00');
+  assert.equal(
+    await evaluate(
+      "document.querySelector('[data-bet-adjust=increase]').disabled",
+    ),
+    true,
+  );
+  await clickAdjustment('min');
+  await clickAdjustment('max');
+  assert.equal(await betValue(), '1000.00');
+  for (const width of [1100, 1280, 1920, 1440]) {
+    await setViewport(width, 1080);
+    assert.ok(
+      await evaluate(
+        `(() => {
+          const input = document.querySelector('#bet');
+          const style = getComputedStyle(input);
+          const context = document.createElement('canvas').getContext('2d');
+          context.font = style.font;
+          const textWidth = context.measureText(input.value).width + parseFloat(style.letterSpacing) * (input.value.length - 1);
+          return input.clientWidth >= textWidth + 2 && document.documentElement.scrollWidth <= innerWidth;
+        })()`,
+      ),
+      `Maximum bet stays readable and the page fits at ${width}px`,
+    );
+    assert.ok(
+      await evaluate(`['.controls-heading', '.bet-heading', '.risk-heading', '.payout-card-heading'].every(selector => {
+        const node = document.querySelector(selector);
+        return node.scrollWidth <= node.clientWidth + 1;
+      })`),
+      `Control headings fit without clipping at ${width}px`,
+    );
+  }
+  await evaluate('scrollTo(0, 0)');
+  // These wallet changes affect only this suite's isolated in-memory fixture.
+  database.prepare('UPDATE players SET balance_cents = ?').run(237);
+  await send('Page.reload');
+  await waitFor(
+    "document.querySelector('#bet')?.disabled === false",
+    'low-balance wallet',
+  );
+  await clickAdjustment('max');
+  assert.equal(await betValue(), '2.30');
+  assert.equal(
+    await evaluate(
+      'document.querySelector(\'[data-bet-preset="500"]\').disabled',
+    ),
+    true,
+  );
+  await setBet('2.40');
+  await evaluate("document.querySelector('#bet-form').requestSubmit()");
+  assert.match(
+    await evaluate("document.querySelector('#bet-error').textContent"),
+    /higher than your balance/,
+  );
+  assert.equal(
+    await evaluate(
+      "fetch('/api/pump/state').then(r => r.json()).then(s => s.round)",
+    ),
+    null,
+  );
+  database.prepare('UPDATE players SET balance_cents = ?').run(9);
+  await send('Page.reload');
+  await waitFor(
+    "document.querySelector('#bet')?.disabled === false",
+    'below-minimum wallet',
+  );
+  assert.equal(
+    await evaluate("document.querySelector('#start-button').disabled"),
+    true,
+  );
+  assert.ok(
+    await evaluate(
+      "[...document.querySelectorAll('[data-bet-adjust], [data-bet-preset]')].every(button => button.disabled)",
+    ),
+  );
+  assert.match(
+    await evaluate("document.querySelector('#bet-error').textContent"),
+    /balance is below/,
+  );
+  database.prepare('UPDATE players SET balance_cents = ?').run(1_000_000);
+  await send('Page.reload');
+  await waitFor(
+    "document.querySelector('#start-button')?.disabled === false",
+    'restored test wallet',
+  );
+  console.log(
+    'PASS: bet shortcuts, presets, keyboard editing, currency paste, desktop layout, and balance limits',
+  );
   await evaluate(
     "document.querySelector('#bet').value = '1000.00'; document.querySelector('#bet-form').requestSubmit()",
   );
   await waitFor(
     "!document.querySelector('#pump-button').disabled",
     'round starts',
+  );
+  assert.ok(
+    await evaluate(
+      "[...document.querySelectorAll('[data-bet-adjust], [data-bet-preset]')].every(button => button.disabled)",
+    ),
+  );
+  await clickAdjustment('min');
+  assert.equal(
+    await betValue(),
+    '1000.00',
+    'Bet shortcuts cannot change an active stake',
   );
   const initial = await evaluate(
     "fetch('/api/pump/state').then(response => response.json())",
@@ -414,8 +686,73 @@ try {
       await evaluate(
         "window.reviewHistoryChanges = 0; window.reviewGeometryReads = 0; window.reviewInitialHistory = document.querySelector('#history-body').firstElementChild; new MutationObserver(records => {window.reviewHistoryChanges += records.length}).observe(document.querySelector('#history-body'), {childList:true}); window.reviewOriginalRect = Element.prototype.getBoundingClientRect; Element.prototype.getBoundingClientRect = function(...args) {if(this.id === 'world-scene') window.reviewGeometryReads++; return window.reviewOriginalRect.apply(this,args)};",
       );
+    if (count === 25)
+      await evaluate(`(() => {
+        const root = document.querySelector('#world-scene');
+        const map = document.querySelector('#world-map');
+        const duration = parseFloat(root.style.getPropertyValue('--camera-duration')) + 600;
+        const start = performance.now();
+        window.reviewSummitFrames = [];
+        function record(now) {
+          window.reviewSummitFrames.push({
+            time: now - start,
+            offset: new DOMMatrixReadOnly(getComputedStyle(map).transform).m42,
+            target: Number(root.dataset.cameraOffset),
+            instant: root.hasAttribute('data-instant'),
+            status: root.dataset.status,
+          });
+          if (now - start < duration) requestAnimationFrame(record);
+        }
+        requestAnimationFrame(record);
+      })()`);
     await pump(count);
+    if (count === 1) {
+      await waitFor(
+        "document.querySelector('#balloon').getAnimations().some(animation => animation.startTime !== null)",
+        'pump animation starts on the audio beat',
+      );
+      report.audioPump = await evaluate(`(() => {
+        const sound = window.reviewAudio.starts.filter(source => !source.loop).at(-1);
+        const animation = document.querySelector('#balloon').getAnimations()[0];
+        return {soundDuration:sound.duration * 1000,
+          animationDuration:animation.effect.getTiming().duration,
+          difference:Math.abs(animation.startTime - sound.at)};
+      })()`);
+      assert.ok(
+        Math.abs(
+          report.audioPump.animationDuration - report.audioPump.soundDuration,
+        ) < 30,
+        'The inflation animation follows the full supplied sound',
+      );
+      assert.ok(
+        report.audioPump.difference < 80,
+        'Inflation sound and animation start within 80 ms',
+      );
+      await waitFor(
+        'window.reviewAudio.gains[0].gain.value >= 0.065 * 0.75 && window.reviewAudio.gains[0].gain.value < 0.065 * 0.95',
+        'music stays audible while gently dipping beneath the inflation effect',
+      );
+    }
     if (count < 25) {
+      assert.ok(
+        await evaluate(
+          "document.querySelector('#scene-particles').childElementCount <= 15",
+        ),
+        'Rapid pumps replace previous particles instead of accumulating them',
+      );
+      if ([4, 8, 12, 16, 20, 23].includes(count)) {
+        assert.equal(
+          await evaluate("document.querySelector('#biome-title').textContent"),
+          await evaluate(
+            "document.querySelector('#environment-name').textContent",
+          ),
+          'Biome arrival announces the new world',
+        );
+        assert.equal(
+          await evaluate("document.querySelector('#biome-reveal').hidden"),
+          false,
+        );
+      }
       const nextRisk = Number(
         await evaluate(
           "document.querySelector('#pop-chance').textContent.replace('%', '')",
@@ -424,6 +761,21 @@ try {
       assert.ok(
         nextRisk > displayedRisk,
         `Displayed pop chance rises after pump ${count}`,
+      );
+      assert.equal(
+        await evaluate(
+          "Number(document.querySelector('#risk-gauge').getAttribute('aria-valuenow'))",
+        ),
+        nextRisk,
+        'The pressure gauge exposes the displayed probability',
+      );
+      assert.ok(
+        Math.abs(
+          (await evaluate(
+            "parseFloat(document.querySelector('#risk-fill').style.width)",
+          )) - nextRisk,
+        ) < 0.01,
+        'The pressure gauge uses the actual 0–100% probability scale',
       );
       displayedRisk = nextRisk;
     }
@@ -445,8 +797,30 @@ try {
         ),
         0,
       );
+      await waitFor(
+        "window.reviewAudio.contexts[0].state === 'suspended'",
+        'hidden tab suspends audio',
+      );
+      const pausedAudio = await evaluate(
+        '({time:window.reviewAudio.contexts[0].currentTime, starts:window.reviewAudio.starts.length})',
+      );
+      await delay(80);
+      assert.equal(
+        await evaluate('window.reviewAudio.contexts[0].currentTime'),
+        pausedAudio.time,
+        'Audio and animations freeze together while hidden',
+      );
       await evaluate(
         "delete document.hidden; document.dispatchEvent(new Event('visibilitychange'))",
+      );
+      await waitFor(
+        "window.reviewAudio.contexts[0].state === 'running'",
+        'visible tab resumes audio',
+      );
+      assert.equal(
+        await evaluate('window.reviewAudio.starts.length'),
+        pausedAudio.starts,
+        'Returning to the tab resumes the existing music and effect',
       );
     }
     if ([3, 6, 10, 14, 17, 21, 24].includes(count)) {
@@ -529,9 +903,61 @@ try {
     ),
     summitId,
   );
+  assert.equal(
+    await evaluate(
+      "document.querySelector('#world-scene').dataset.endingEffect",
+    ),
+    'summit',
+  );
+  const summitSound = await evaluate(
+    'window.reviewAudio.starts.filter(source => !source.loop).at(-1)',
+  );
+  assert.ok(Math.abs(summitSound.duration - 3.785) < 0.03);
+  assert.equal(
+    summitSound.args[2],
+    2.2,
+    'The summit cue omits its silent tail',
+  );
+  const crownOpacity = await evaluate(`(() => {
+    const crown = document.querySelector('#crown-reveal');
+    const animation = crown.getAnimations()[0];
+    animation.pause();
+    animation.currentTime = 800;
+    window.reviewCrownAnimation = animation;
+    return Number(getComputedStyle(crown).opacity);
+  })()`);
+  assert.ok(
+    crownOpacity > 0.9,
+    'The summit crown has a clear visible hold before fading',
+  );
+  await screenshot('summit-animation');
+  await evaluate(
+    'window.reviewCrownAnimation.play(); delete window.reviewCrownAnimation',
+  );
   await waitFor(
     "!document.querySelector('#start-button').disabled",
     'summit celebration finishes',
+  );
+  report.summitScroll = await evaluate(`(() => {
+    const frames = window.reviewSummitFrames.filter(frame => frame.status === 'cashed_out');
+    const first = frames[0];
+    const last = frames.at(-1);
+    return {
+      samples: frames.length,
+      intermediateFrames: frames.filter(frame => frame.offset > first.offset + 1 && frame.offset < frame.target - 1).length,
+      instantFrames: frames.filter(frame => frame.instant).length,
+      scrollingAfterHalfSecond: frames.some(frame => frame.time - first.time > 500 && frame.offset < frame.target - 1),
+      finalOffset: last.offset,
+      target: last.target,
+    };
+  })()`);
+  assert.ok(report.summitScroll.intermediateFrames >= 3);
+  assert.equal(report.summitScroll.instantFrames, 0);
+  assert.equal(report.summitScroll.scrollingAfterHalfSecond, true);
+  assert.ok(
+    Math.abs(report.summitScroll.finalOffset - report.summitScroll.target) <
+      0.1,
+    'The final ascent scrolls smoothly and finishes exactly at the summit',
   );
   await assertCompletedRisk();
   assert.equal(
@@ -583,7 +1009,15 @@ try {
     ),
     8,
   );
-  await screenshot('pump-desktop-space', true);
+  await screenshot('pump-desktop-space');
+  assert.equal(
+    await evaluate("document.querySelector('#result-banner').dataset.kind"),
+    'summit',
+  );
+  assert.equal(
+    await evaluate("document.querySelectorAll('.wallet-trails').length"),
+    0,
+  );
   const transparentAtlases =
     await evaluate(`Promise.all(['butterfly-atlas', 'sky-ray-atlas', 'crown-whale-atlas'].map(async name => {
     const image = new Image(); image.src = '/art/sprites/' + name + '.png?v=2'; await image.decode();
@@ -621,37 +1055,26 @@ try {
   );
   assert.equal(
     await evaluate(
+      'window.reviewAudio.starts.filter(source => !source.loop).length',
+    ),
+    0,
+    'Restoring a finished flight never repeats its sound effect',
+  );
+  assert.equal(
+    await evaluate(
       "document.querySelector('[data-biome=meadow] img').hasAttribute('src')",
     ),
     false,
   );
 
   for (const [width, height] of [
-    [320, 568],
-    [390, 844],
-    [768, 1024],
-    [1024, 900],
+    [1100, 800],
+    [1280, 900],
+    [1920, 1080],
     [1440, 1080],
   ]) {
-    await send('Emulation.setDeviceMetricsOverride', {
-      width,
-      height,
-      deviceScaleFactor: 1,
-      mobile: width < 760,
-    });
+    await setViewport(width, height);
     await delay(180);
-    if (width < 760) {
-      await waitFor(
-        "document.querySelector('[data-biome=astral-crown] img').complete",
-        'portrait summit',
-      );
-      await delay(180);
-      assert.ok(
-        await evaluate(
-          "document.querySelector('[data-biome=astral-crown] img').currentSrc.endsWith('astral-crown-mobile.png')",
-        ),
-      );
-    }
     assert.ok(
       await evaluate('document.documentElement.scrollWidth <= innerWidth'),
       `No page overflow at ${width}px`,
@@ -661,6 +1084,12 @@ try {
         "document.querySelector('#payout').scrollWidth <= document.querySelector('#payout').clientWidth + 1",
       ),
       `Payout fits at ${width}px`,
+    );
+    assert.ok(
+      await evaluate(
+        "document.querySelector('.payout-card-detail').scrollWidth <= document.querySelector('.payout-card-detail').clientWidth + 1",
+      ),
+      `Stake and net payout fit at ${width}px`,
     );
     assert.ok(
       await evaluate(
@@ -680,14 +1109,8 @@ try {
       ),
       `Top stays aligned at ${width}px`,
     );
-    if (width === 390) {
-      await screenshot('pump-mobile-space', true);
-      await assertBackdropRetry('astral-crown', width, height);
-      console.log(
-        'PASS: portrait backdrop becomes visible after success, failure, and retry',
-      );
-    }
   }
+  await assertBackdropRetry('astral-crown', 1440, 1080);
   console.log(
     'PASS: all 25 pumps, milestone changes, refresh recovery, exact top alignment, auto settlement',
   );
@@ -707,7 +1130,30 @@ try {
   );
   await pump(1);
   await pump(2);
+  const popSound = await evaluate(
+    'window.reviewAudio.starts.filter(source => !source.loop).at(-1)',
+  );
+  assert.ok(Math.abs(popSound.duration - 0.544) < 0.03);
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.balloon-fragment').getAnimations()[0].effect.getTiming().delay",
+    ),
+    50,
+    'Balloon fragments appear on the pop impact',
+  );
   await assertCompletedRisk();
+  assert.equal(
+    await evaluate("document.querySelector('#result-banner').dataset.kind"),
+    'pop',
+  );
+  await delay(200);
+  assert.ok(
+    await evaluate(
+      "document.querySelectorAll('.balloon-fragment use').length > 0",
+    ),
+    'Pop fragments reuse the balloon artwork',
+  );
+  await screenshot('pop-animation');
   assert.equal(
     await evaluate("document.querySelector('#start-button').disabled"),
     true,
@@ -735,6 +1181,12 @@ try {
     /stake lost/,
   );
   await screenshot('pump-pop');
+  assert.equal(
+    await evaluate(
+      "document.querySelector('#scene-particles').childElementCount",
+    ),
+    0,
+  );
   console.log('PASS: reset to ground, pop effect, loss state');
 
   await evaluate("document.querySelector('#bet-form').requestSubmit()");
@@ -748,7 +1200,23 @@ try {
     "document.querySelector('#world-scene').dataset.status === 'cashed_out'",
     'manual cashout',
   );
+  const cashoutSound = await evaluate(
+    'window.reviewAudio.starts.filter(source => !source.loop).at(-1)',
+  );
+  assert.ok(Math.abs(cashoutSound.duration - 4.446) < 0.03);
+  assert.equal(cashoutSound.args[2], 2.2, 'Cashout omits the long silent tail');
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.wallet-coin').getAnimations()[0].effect.getTiming().duration",
+    ),
+    350,
+    'Coins reach the wallet with the cashout chime',
+  );
   await assertCompletedRisk();
+  assert.equal(
+    await evaluate("document.querySelector('#result-banner').dataset.kind"),
+    'cashout',
+  );
   assert.equal(
     await evaluate("document.querySelector('#result-label').textContent"),
     'PAYOUT SECURED',
@@ -767,12 +1235,28 @@ try {
     ),
     cashoutId,
   );
+  assert.ok(
+    await evaluate("document.querySelectorAll('.wallet-coin').length > 0"),
+    'Cashout sends a trail to the wallet',
+  );
+  await delay(650);
+  await screenshot('cashout-animation');
   await send('Emulation.setEmulatedMedia', {
     features: [{ name: 'prefers-reduced-motion', value: 'reduce' }],
   });
   await waitFor(
     "!document.querySelector('#start-button').disabled",
     'reduced motion releases cancelled animations',
+  );
+  assert.equal(
+    await evaluate("document.querySelectorAll('.wallet-trails').length"),
+    0,
+    'Cancellation removes effects outside the game scene',
+  );
+  assert.equal(
+    await evaluate("document.querySelector('#result-value').textContent"),
+    '$32.00',
+    'Cancellation preserves the final confirmed payout',
   );
   assert.equal(
     await evaluate(
@@ -797,22 +1281,15 @@ try {
   );
   console.log('PASS: manual cashout, wallet, history, seed disclosure');
 
-  await send('Emulation.setDeviceMetricsOverride', {
-    width: 390,
-    height: 844,
-    deviceScaleFactor: 1,
-    mobile: true,
-  });
-  await delay(300);
   await evaluate("document.querySelector('#bet-form').requestSubmit()");
   await waitFor(
     "!document.querySelector('#pump-button').disabled && document.querySelector('#pump-count').textContent === '00'",
-    'mobile flight',
+    'desktop flight',
   );
   for (let count = 1; count <= 10; count++) await pump(count);
   await delay(1200);
   await evaluate('window.scrollTo(0, 0)');
-  assert.equal(
+  assert.notEqual(
     await evaluate(
       "getComputedStyle(document.querySelector('#round-actions')).position",
     ),
@@ -822,18 +1299,31 @@ try {
     await evaluate('document.documentElement.scrollWidth <= innerWidth'),
   );
   assert.ok(
-    await evaluate(
-      "document.querySelector('#pump-button').getBoundingClientRect().bottom <= innerHeight",
-    ),
+    await evaluate(`(() => {
+      const actions = document.querySelector('#round-actions').getBoundingClientRect();
+      const panel = document.querySelector('.controls-panel').getBoundingClientRect();
+      return actions.left >= panel.left && actions.right <= panel.right;
+    })()`),
+    'Actions stay inside the desktop control panel',
   );
-  await screenshot('pump-mobile-flight', true);
-  console.log('PASS: mobile camera, fixed action dock, no horizontal overflow');
+  await screenshot('pump-desktop-flight');
+  console.log('PASS: desktop flight and control panel layout');
 
   await send('Emulation.setEmulatedMedia', {
     features: [{ name: 'prefers-reduced-motion', value: 'reduce' }],
   });
   await delay(50);
+  const soundsBeforeReducedPump = await evaluate(
+    'window.reviewAudio.starts.filter(source => !source.loop).length',
+  );
   await pump(11);
+  assert.equal(
+    await evaluate(
+      'window.reviewAudio.starts.filter(source => !source.loop).length',
+    ),
+    soundsBeforeReducedPump + 1,
+    'Reduced motion keeps sound effects available without animation',
+  );
   await delay(50);
   assert.equal(
     await evaluate(
@@ -896,6 +1386,17 @@ try {
   assert.equal(
     await evaluate("document.querySelector('#result-label').textContent"),
     'FLIGHT ENDED',
+  );
+  assert.equal(
+    await evaluate("document.querySelector('#result-banner').dataset.kind"),
+    'pop',
+  );
+  assert.equal(
+    await evaluate(
+      "document.querySelector('#world-scene').hasAttribute('data-ending-effect')",
+    ),
+    false,
+    'Reduced motion presents the completed result without a sequence',
   );
   console.log('PASS: a pop on pump 25 never triggers a summit win');
   await send('Emulation.setEmulatedMedia', {
@@ -1015,6 +1516,76 @@ try {
   );
   console.log(
     'PASS: recorded testing mode controls restored rounds and history proofs; completed risk stays cleared in both modes',
+  );
+  await waitFor(
+    "!document.querySelector('#start-button').disabled",
+    'last flight finishes before the refill fixture',
+  );
+  database.prepare('UPDATE players SET balance_cents = 10').run();
+  await send('Page.reload');
+  await waitFor(
+    "document.querySelector('#balance')?.textContent === '$0.10' && !document.querySelector('#start-button').disabled",
+    'last demo stake loaded',
+  );
+  await evaluate(
+    "document.querySelector('#bet').value = '0.10'; document.querySelector('#bet-form').requestSubmit()",
+  );
+  await waitFor(
+    "!document.querySelector('#pump-button').disabled",
+    'all-in round starts',
+  );
+  assert.equal(
+    await evaluate("document.querySelector('#balance').textContent"),
+    '$0.00',
+  );
+  assert.equal(
+    await evaluate(
+      "fetch('/api/pump/state').then(r => r.json()).then(s => s.wallet.balanceCents)",
+    ),
+    0,
+    'An active all-in round never triggers a refill',
+  );
+  await pump(1);
+  assert.equal(
+    await evaluate("document.querySelector('#world-scene').dataset.status"),
+    'popped',
+  );
+  assert.equal(
+    await evaluate("document.querySelector('#balance').textContent"),
+    '$10,000.00',
+  );
+  assert.equal(
+    await evaluate("document.querySelector('#payout').textContent"),
+    '$0.00',
+  );
+  assert.match(
+    await evaluate("document.querySelector('#result-caption').textContent"),
+    /Demo balance reset to \$10,000\.00/,
+  );
+  await waitFor(
+    "!document.querySelector('#start-button').disabled",
+    'refill pop animation finishes',
+  );
+  await send('Page.reload');
+  await waitFor(
+    "document.querySelector('#balance')?.textContent === '$10,000.00' && !document.querySelector('#start-button').disabled",
+    'refilled wallet persists after reload',
+  );
+  await evaluate(
+    "document.querySelector('#bet').value = '0.10'; document.querySelector('#bet-form').requestSubmit()",
+  );
+  await waitFor(
+    "!document.querySelector('#pump-button').disabled",
+    'player can start another round',
+  );
+  assert.equal(
+    await evaluate(
+      "fetch('/api/pump/state').then(r => r.json()).then(s => s.wallet.balanceCents)",
+    ),
+    999990,
+  );
+  console.log(
+    'PASS: zero-balance demo refill, all-in protection, clear feedback, reload persistence, and restart',
   );
   assert.deepEqual(exceptions, []);
   assert.deepEqual(failures, []);

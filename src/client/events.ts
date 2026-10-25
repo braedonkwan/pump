@@ -1,31 +1,63 @@
-import {
-  MIN_BET_CENTS,
-  MAX_BET_CENTS,
-  BET_STEP_CENTS,
-} from '../shared/settings.js';
+import { CENTS_PER_DOLLAR } from '../shared/settings.js';
 import type { GameActions } from './actions.js';
+import {
+  BET_ADJUSTMENTS,
+  adjustBet,
+  getBetError,
+  type BetAdjustment,
+} from './bet-model.js';
 import { element } from './dom.js';
-import { money, parseBet } from './format.js';
+import { parseAmountCents, parseBet } from './format.js';
+import { renderBetControls } from './renderers/bet.js';
 import { setMessage } from './renderers/controls.js';
 import type { GameDialogs } from './renderers/dialogs.js';
 
 export function wireEvents(actions: GameActions, dialogs: GameDialogs): void {
   const bet = element<HTMLInputElement>('#bet');
+  const balance = () => actions.state?.wallet.balanceCents ?? 0;
+  const updateBet = (cents: number | null) => {
+    if (bet.disabled || cents === null) return;
+    bet.value = (cents / CENTS_PER_DOLLAR).toFixed(2);
+    setMessage('');
+    renderBetControls(balance());
+  };
+  const adjust = (adjustment: BetAdjustment) =>
+    updateBet(adjustBet(parseAmountCents(bet.value), adjustment, balance()));
+  for (const adjustment of BET_ADJUSTMENTS) {
+    element(`[data-bet-adjust="${adjustment}"]`).addEventListener('click', () =>
+      adjust(adjustment),
+    );
+  }
+  document
+    .querySelectorAll<HTMLButtonElement>('[data-bet-preset]')
+    .forEach((button) => {
+      button.addEventListener('click', () => {
+        if (!button.disabled) updateBet(Number(button.dataset.betPreset));
+      });
+    });
+  bet.addEventListener('input', () => {
+    setMessage('');
+    renderBetControls(balance());
+  });
+  bet.addEventListener('blur', () => {
+    const cents = parseBet(bet.value);
+    if (cents !== null) updateBet(cents);
+  });
+  bet.addEventListener('keydown', (event) => {
+    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+    event.preventDefault();
+    adjust(event.key === 'ArrowUp' ? 'increase' : 'decrease');
+  });
   element<HTMLFormElement>('#bet-form').addEventListener('submit', (event) => {
     event.preventDefault();
     if (bet.disabled) return;
     const betCents = parseBet(bet.value);
-    if (betCents === null) {
-      setMessage(
-        `Enter a bet from ${money(MIN_BET_CENTS)} to ${money(MAX_BET_CENTS)} in ${money(BET_STEP_CENTS)} increments.`,
-      );
+    if (betCents === null || getBetError(bet.value, balance())) {
+      renderBetControls(balance());
       bet.focus();
       return;
     }
-    if (actions.state && betCents > actions.state.wallet.balanceCents) {
-      setMessage('Your bet is higher than your balance.');
-      return;
-    }
+    updateBet(betCents);
     void actions.start(betCents);
   });
   element('#pump-button').addEventListener(

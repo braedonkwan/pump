@@ -8,26 +8,36 @@
   },
   "scripts": {
     "dev": "concurrently --kill-others -n api,web \"npm:dev:api\" \"npm:dev:web\"",
-    "dev:api": "tsx watch src/server/index.ts",
+    "dev:api": "tsx watch src/server/index.ts --test-mode",
     "dev:test": "concurrently --kill-others -n api,web \"npm:dev:api:test\" \"npm:dev:web\"",
     "dev:api:test": "tsx watch src/server/index.ts --test-mode",
     "dev:web": "vite --host 127.0.0.1",
-    "check": "tsc --noEmit",
+    "check": "tsc --noEmit && tsc -p tsconfig.worker.json",
     "test": "tsx --test tests/*.test.ts",
+    "test:unit": "node scripts/test-unit.mjs",
     "test:browser": "npm run build && node --import tsx tests/browser.mjs",
     "test:all": "npm test && npm run test:browser",
     "build": "npm run check && vite build && tsc -p tsconfig.server.json",
-    "start": "node dist/server/server/index.js",
+    "deploy:check": "npm run build && wrangler deploy --dry-run --outdir dist/worker",
+    "deploy": "npm run build && wrangler deploy",
+    "start": "node dist/server/server/index.js --test-mode",
     "start:test": "node dist/server/server/index.js --test-mode",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "5.20261025.1",
     "@types/node": "^22.20.0",
     "concurrently": "^10.0.6",
+    "esbuild": "0.28.2",
+    "miniflare": "5.20261019.2-beta",
     "prettier": "^3.9.10",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3",
-    "vite": "^8.3.5"
+    "vite": "^8.3.5",
+    "wrangler": "4.152.0"
+  },
+  "overrides": {
+    "undici": "7.30.1"
   }
 }

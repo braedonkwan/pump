@@ -2,7 +2,6 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0c101b" />
     <meta
       name="description"
@@ -33,6 +32,16 @@
         <circle cx="12" cy="12" r="9" />
         <path d="M12 11v5m0-9v1" />
       </symbol>
+      <symbol id="icon-music" viewBox="0 0 24 24">
+        <path d="M9 18V5l11-2v13M9 8l11-2" />
+        <ellipse cx="6" cy="18" rx="3" ry="2" />
+        <ellipse cx="17" cy="16" rx="3" ry="2" />
+      </symbol>
+      <symbol id="icon-sound" viewBox="0 0 24 24">
+        <path
+          d="m11 4-6 5H2v6h3l6 5V4Zm4 4a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"
+        />
+      </symbol>
       <symbol id="icon-wallet" viewBox="0 0 24 24">
         <path
           d="M20 7H5a2 2 0 0 1 0-4h12v4M3 5v14a2 2 0 0 0 2 2h15V7m0 5h-6v5h6m-3-2.5h.01"
@@ -49,6 +58,47 @@
           d="M3 8h12a3 3 0 1 0-3-3M3 12h16a3 3 0 1 1-3 3M3 16h5a2 2 0 1 1-2 2"
         />
       </symbol>
+      <symbol id="icon-gauge" viewBox="0 0 24 24">
+        <path d="M4.2 18a9 9 0 1 1 15.6 0H4.2Z" />
+        <path d="M12 5v2M5.6 8.5l1.5 1.3m11.3-1.3-1.5 1.3M12 14l4-4" />
+        <circle cx="12" cy="14" r="1.5" />
+      </symbol>
+      <symbol id="icon-cloud" viewBox="0 0 24 24">
+        <path d="M6 18a4 4 0 1 1 .5-8A6 6 0 0 1 18 8a5 5 0 0 1 0 10H6Z" />
+      </symbol>
+      <symbol id="icon-crystal" viewBox="0 0 24 24">
+        <path d="m12 2 8 8-8 12-8-12 8-8Zm0 0v20M4 10h16" />
+      </symbol>
+      <symbol id="icon-bolt" viewBox="0 0 24 24">
+        <path d="m14 2-10 12h7l-1 8 10-12h-7l1-8Z" />
+      </symbol>
+      <symbol id="icon-flower" viewBox="0 0 24 24">
+        <path
+          d="M12 9C3-2 0 12 9 12-2 21 12 24 12 15c9 11 12-3 3-3C26 3 12 0 12 9Z"
+        />
+        <circle cx="12" cy="12" r="2" />
+      </symbol>
+      <symbol id="icon-orbit" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="3" />
+        <ellipse cx="12" cy="12" rx="10" ry="5" transform="rotate(-35 12 12)" />
+        <path d="M5 5 4 3m14 15 2 3" />
+      </symbol>
+      <symbol id="icon-portal" viewBox="0 0 24 24">
+        <ellipse cx="12" cy="12" rx="7" ry="10" />
+        <ellipse cx="12" cy="12" rx="3" ry="6" />
+        <path d="M2 12h4m12 0h4" />
+      </symbol>
+      <symbol id="icon-crown" viewBox="0 0 24 24">
+        <path d="m4 8 4 4 4-8 4 8 4-4-2 10H6L4 8Zm3 13h10" />
+        <circle cx="4" cy="6" r="1" />
+        <circle cx="12" cy="2" r="1" />
+        <circle cx="20" cy="6" r="1" />
+      </symbol>
+      <symbol id="icon-burst" viewBox="0 0 24 24">
+        <path
+          d="m12 2 2.5 6 6-3-3 6 4.5 3-6.5 1-1 7-4-5-6 3 2-6-5-3 7-1 3-7Z"
+        />
+      </symbol>
     </svg>
 
     <header class="app-header">
@@ -63,6 +113,32 @@
         ><span class="brand-edition">ORIGINALS</span></a
       >
       <div class="header-actions">
+        <div class="audio-controls" role="group" aria-label="Audio settings">
+          <button
+            class="audio-toggle"
+            id="music-toggle"
+            type="button"
+            aria-label="Background music"
+            aria-pressed="true"
+            title="Music: on"
+          >
+            <svg class="icon" aria-hidden="true">
+              <use href="#icon-music" />
+            </svg>
+          </button>
+          <button
+            class="audio-toggle"
+            id="sound-toggle"
+            type="button"
+            aria-label="Sound effects"
+            aria-pressed="true"
+            title="Sound effects: on"
+          >
+            <svg class="icon" aria-hidden="true">
+              <use href="#icon-sound" />
+            </svg>
+          </button>
+        </div>
         <button class="help-button" id="how-to-button" aria-label="How to play">
           <svg class="icon"><use href="#icon-info" /></svg
           ><span>How to play</span>
@@ -119,7 +195,8 @@
             <div class="scene-topbar">
               <div class="environment-tag">
                 <span class="environment-icon"
-                  ><svg class="icon"><use href="#icon-wind" /></svg
+                  ><svg class="icon">
+                    <use id="environment-symbol" href="#icon-wind" /></svg
                 ></span>
                 <div>
                   <span class="overline">YOUR WORLD</span
@@ -164,24 +241,30 @@
                       <defs>
                         <radialGradient
                           id="balloon-fill"
-                          cx="32%"
-                          cy="24%"
-                          r="80%"
+                          cx="29%"
+                          cy="21%"
+                          r="86%"
                         >
-                          <stop offset="0" stop-color="#ffc9aa" />
-                          <stop offset=".28" stop-color="#ff9478" />
-                          <stop offset=".6" stop-color="#ff654f" />
-                          <stop offset=".86" stop-color="#e73f49" />
-                          <stop offset="1" stop-color="#b62e4c" />
+                          <stop offset="0" stop-color="#fff0d6" />
+                          <stop offset=".15" stop-color="#ffbca0" />
+                          <stop offset=".4" stop-color="#ff8067" />
+                          <stop offset=".67" stop-color="#ef5150" />
+                          <stop offset=".88" stop-color="#b82e50" />
+                          <stop offset="1" stop-color="#782641" />
                         </radialGradient>
                         <linearGradient
                           id="balloon-shine"
                           x1="0"
                           y1="0"
-                          x2="1"
+                          x2=".8"
                           y2="1"
                         >
-                          <stop stop-color="#fff" stop-opacity=".88" />
+                          <stop stop-color="#fff9eb" stop-opacity=".94" />
+                          <stop
+                            offset=".55"
+                            stop-color="#ffe5d4"
+                            stop-opacity=".35"
+                          />
                           <stop offset="1" stop-color="#fff" stop-opacity="0" />
                         </linearGradient>
                         <linearGradient
@@ -189,13 +272,32 @@
                           x1="0"
                           y1="0"
                           x2="1"
-                          y2="1"
+                          y2=".8"
                         >
-                          <stop stop-color="#ffe5ce" stop-opacity=".7" />
+                          <stop stop-color="#ffe9d0" stop-opacity=".9" />
+                          <stop
+                            offset=".5"
+                            stop-color="#ffbca4"
+                            stop-opacity=".2"
+                          />
                           <stop
                             offset="1"
-                            stop-color="#ff705d"
-                            stop-opacity="0"
+                            class="balloon-reflection"
+                            stop-opacity=".9"
+                          />
+                        </linearGradient>
+                        <linearGradient
+                          id="balloon-underside"
+                          x1="0"
+                          y1="0"
+                          x2="0"
+                          y2="1"
+                        >
+                          <stop stop-color="#8b2944" stop-opacity="0" />
+                          <stop
+                            offset="1"
+                            stop-color="#69213d"
+                            stop-opacity=".46"
                           />
                         </linearGradient>
                       </defs>
@@ -204,50 +306,145 @@
                         d="M130 277C107 298 154 315 130 335S118 359 130 368"
                         fill="none"
                         stroke="#fff2e3"
-                        stroke-opacity=".8"
-                        stroke-width="1.6"
+                        stroke-opacity=".86"
+                        stroke-width="1.7"
                       />
-                      <path
-                        d="M130 266C111 260 27 202 27 117C27 53 69 17 130 17S233 53 233 117C233 202 149 260 130 266Z"
-                        fill="url(#balloon-fill)"
-                        stroke="url(#balloon-rim)"
-                        stroke-width="1.5"
-                      />
-                      <path
-                        d="M62 112C62 69 86 45 117 43"
-                        fill="none"
-                        stroke="url(#balloon-shine)"
-                        stroke-width="18"
-                        stroke-linecap="round"
-                      />
-                      <ellipse
-                        cx="76"
-                        cy="139"
-                        rx="5"
-                        ry="10"
-                        fill="#fff"
-                        opacity=".2"
-                      />
-                      <path
-                        d="m130 264-11 16q11-5 22 0l-11-16Z"
-                        fill="#cf3c4b"
-                      />
-                      <path
-                        d="m130 111 5 13 14 5-14 5-5 14-5-14-14-5 14-5 5-13Z"
-                        fill="#fff2dc"
-                        opacity=".82"
-                      />
+                      <g id="balloon-envelope">
+                        <path
+                          d="M130 266C111 260 27 202 27 117C27 53 69 17 130 17S233 53 233 117C233 202 149 260 130 266Z"
+                          fill="url(#balloon-fill)"
+                          stroke="url(#balloon-rim)"
+                          stroke-width="2"
+                        />
+                        <path
+                          d="M45 164C69 205 163 235 218 168 197 220 145 262 130 266 107 257 62 214 45 164Z"
+                          fill="url(#balloon-underside)"
+                        />
+                        <path
+                          d="M51 111C51 69 78 39 114 34"
+                          fill="none"
+                          stroke="url(#balloon-shine)"
+                          stroke-width="19"
+                          stroke-linecap="round"
+                        />
+                        <path
+                          d="M61 72C74 51 90 44 107 42"
+                          fill="none"
+                          stroke="#fff9eb"
+                          stroke-opacity=".6"
+                          stroke-width="3"
+                          stroke-linecap="round"
+                        />
+                        <ellipse
+                          cx="47"
+                          cy="129"
+                          rx="4.5"
+                          ry="9"
+                          fill="#ffeadd"
+                          opacity=".35"
+                          transform="rotate(-12 47 129)"
+                        />
+                        <path
+                          d="M198 70C225 116 213 170 185 203"
+                          class="balloon-reflection"
+                          fill="none"
+                          stroke-width="4"
+                          stroke-linecap="round"
+                          opacity=".45"
+                        />
+                        <path
+                          d="M164 35C199 101 187 204 132 254M96 31C60 108 82 207 126 254"
+                          fill="none"
+                          stroke="#ffe0cf"
+                          stroke-opacity=".1"
+                          stroke-width="1"
+                        />
+                        <path
+                          d="M114 249q16 12 32 0"
+                          fill="none"
+                          stroke="#69213d"
+                          stroke-opacity=".25"
+                          stroke-width="3"
+                          stroke-linecap="round"
+                        />
+                        <circle
+                          cx="131"
+                          cy="131"
+                          r="25"
+                          fill="#ce49422b"
+                          stroke="#ffe5bc"
+                          stroke-opacity=".34"
+                          stroke-width="1"
+                        />
+                        <path
+                          d="m131 113 5 13 14 5-14 5-5 14-5-14-14-5 14-5 5-13Z"
+                          fill="#fff0cb"
+                          opacity=".94"
+                        />
+                        <circle
+                          cx="151"
+                          cy="111"
+                          r="2"
+                          fill="#fff6df"
+                          opacity=".8"
+                        />
+                        <path
+                          d="m130 263-10 16q10-4 20 0l-10-16Z"
+                          fill="#c63b4c"
+                          stroke="#f18d78"
+                          stroke-width=".8"
+                        />
+                        <path
+                          d="m124 270 7-3 5 6"
+                          fill="none"
+                          stroke="#842a41"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                        />
+                      </g>
                     </svg>
                   </div>
                 </div>
               </div>
             </div>
             <div class="pump-ripple" id="pump-ripple" aria-hidden="true"></div>
+            <div class="pump-air" id="pump-air" aria-hidden="true">
+              <i></i><i></i><i></i>
+            </div>
             <div
               class="scene-particles"
               id="scene-particles"
               aria-hidden="true"
             ></div>
+
+            <div class="ending-stage" aria-hidden="true">
+              <div class="scene-wash" id="scene-wash"></div>
+              <div class="ending-ring" id="ending-ring"></div>
+              <div class="crown-rays" id="crown-rays"></div>
+              <div class="crown-reveal" id="crown-reveal">
+                <svg class="icon"><use href="#icon-crown" /></svg
+                ><span>ASCENT COMPLETE</span
+                ><strong>ALL <span data-max-pumps></span> PUMPS</strong>
+              </div>
+            </div>
+            <div class="biome-wash" id="biome-wash" aria-hidden="true"></div>
+            <div
+              class="biome-reveal"
+              id="biome-reveal"
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+              hidden
+            >
+              <span class="biome-emblem" aria-hidden="true"
+                ><svg class="icon"><use href="#icon-cloud" /></svg
+              ></span>
+              <div>
+                <span class="overline" id="biome-label">NEW HORIZON</span
+                ><strong id="biome-title"></strong>
+                <p id="biome-caption"></p>
+              </div>
+            </div>
 
             <div
               class="result-banner"
@@ -261,6 +458,16 @@
               ><span class="overline" id="result-label">PAYOUT SECURED</span
               ><strong id="result-value">$0.00</strong
               ><span id="result-caption">A beautiful place to call it.</span>
+              <dl class="result-stats">
+                <div>
+                  <dt>FLIGHT</dt>
+                  <dd id="result-pumps"></dd>
+                </div>
+                <div>
+                  <dt id="result-multiplier-label">LOCKED AT</dt>
+                  <dd id="result-multiplier"></dd>
+                </div>
+              </dl>
             </div>
 
             <div
@@ -318,30 +525,133 @@
 
         <aside class="controls-panel" aria-label="Game controls">
           <div class="controls-heading">
-            <h2>Make your move</h2>
-            <span class="manual-badge"><i></i> MANUAL</span>
+            <div class="controls-title">
+              <span class="controls-emblem" aria-hidden="true"
+                ><svg class="icon"><use href="#icon-gauge" /></svg
+              ></span>
+              <div>
+                <span class="overline">YOUR FLIGHT</span>
+                <h2>Flight deck</h2>
+              </div>
+            </div>
+            <span class="manual-badge" id="controls-status"
+              ><i></i><span id="controls-status-label">READY</span></span
+            >
           </div>
           <form id="bet-form">
-            <label for="bet">Bet amount</label>
+            <div class="bet-heading">
+              <label for="bet">Bet amount</label>
+              <span id="bet-balance" class="bet-balance"></span>
+            </div>
             <div class="bet-field">
+              <button
+                class="bet-step"
+                type="button"
+                data-bet-adjust="decrease"
+                aria-label="Decrease bet"
+                disabled
+              >
+                <span aria-hidden="true">−</span>
+              </button>
               <span class="bet-currency">$</span
               ><input
                 id="bet"
                 name="bet"
                 type="text"
-                inputmode="decimal"
+                role="spinbutton"
                 value="10.00"
                 autocomplete="off"
-                aria-describedby="bet-help"
-                maxlength="8"
+                spellcheck="false"
+                aria-describedby="bet-help bet-error"
+                maxlength="16"
                 disabled
-              /><span class="input-currency">USD</span>
+              />
+              <button
+                class="bet-step"
+                type="button"
+                data-bet-adjust="increase"
+                aria-label="Increase bet"
+                disabled
+              >
+                <span aria-hidden="true">+</span>
+              </button>
+            </div>
+            <div class="bet-shortcuts">
+              <div class="bet-adjustments" role="group" aria-label="Adjust bet">
+                <button
+                  type="button"
+                  data-bet-adjust="min"
+                  aria-label="Minimum bet"
+                  disabled
+                >
+                  Min
+                </button>
+                <button
+                  type="button"
+                  data-bet-adjust="half"
+                  aria-label="Halve bet, rounded down"
+                  disabled
+                >
+                  ½
+                </button>
+                <button
+                  type="button"
+                  data-bet-adjust="double"
+                  aria-label="Double bet"
+                  disabled
+                >
+                  2×
+                </button>
+                <button
+                  type="button"
+                  data-bet-adjust="max"
+                  aria-label="Maximum affordable bet"
+                  disabled
+                >
+                  Max
+                </button>
+              </div>
+              <div class="bet-presets" role="group" aria-label="Preset bets">
+                <button
+                  type="button"
+                  data-bet-preset="100"
+                  aria-pressed="false"
+                  disabled
+                >
+                  $1
+                </button>
+                <button
+                  type="button"
+                  data-bet-preset="500"
+                  aria-pressed="false"
+                  disabled
+                >
+                  $5
+                </button>
+                <button
+                  type="button"
+                  data-bet-preset="1000"
+                  aria-pressed="true"
+                  disabled
+                >
+                  $10
+                </button>
+                <button
+                  type="button"
+                  data-bet-preset="5000"
+                  aria-pressed="false"
+                  disabled
+                >
+                  $50
+                </button>
+              </div>
             </div>
             <p class="field-help" id="bet-help">
               Min <span data-min-bet></span> <span>·</span> Max
               <span data-max-bet></span>
               <br />In <span data-bet-step></span> increments
             </p>
+            <p class="bet-error" id="bet-error" aria-live="polite" hidden></p>
             <button
               class="primary-button"
               type="submit"
@@ -360,7 +670,7 @@
             >
               <span
                 ><span id="pump-label">Pump balloon</span
-                ><small id="next-multiplier">Next 1.01×</small></span
+                ><small id="next-multiplier">Next 1.10×</small></span
               ><svg class="icon"><use href="#icon-arrow" /></svg></button
             ><button class="cashout-button" id="cashout-button" disabled>
               <span>Cash out</span><strong id="cashout-value">$0.00</strong
@@ -380,10 +690,26 @@
           </div>
           <div class="risk-card">
             <div class="risk-heading">
-              <span>Next pump pop chance</span
+              <span
+                ><svg class="icon" aria-hidden="true">
+                  <use href="#icon-gauge" /></svg
+                ><span>Next pump<br />pop chance</span></span
               ><strong id="pop-chance">—</strong>
             </div>
-            <div class="risk-track"><div id="risk-fill"></div></div>
+            <div
+              class="risk-track"
+              id="risk-gauge"
+              role="meter"
+              aria-label="Next pump pop chance"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              aria-valuenow="0"
+            >
+              <div id="risk-fill"></div>
+            </div>
+            <div class="risk-axis" aria-hidden="true">
+              <span>0%</span><span>50%</span><span>100%</span>
+            </div>
             <div class="risk-scale">
               <span id="risk-caption">Keep an eye on the pressure</span
               ><svg class="icon"><use href="#icon-info" /></svg>
@@ -404,7 +730,7 @@
           </button>
           <div class="controls-footer">
             <svg class="icon"><use href="#icon-shield" /></svg
-            ><span>Fixed outcome. Verifiable seed.</span>
+            ><span>Verifiable, every flight.</span>
           </div>
         </aside>
       </div>
@@ -507,7 +833,9 @@
         survive. Before your first pump, cashing out returns your full stake.
         After at least one pump, normal-play RTP is between
         <span data-min-rtp></span>% and <span data-rtp-percent></span>%. Payouts
-        include your stake and round down to whole cents.
+        include your stake and round down to whole cents. If a finished round
+        leaves your balance at $0.00, it automatically resets to
+        <span data-demo-balance></span> in demo credits.
       </div>
       <button class="primary-button" data-close-dialog>
         Let’s fly <svg class="icon"><use href="#icon-arrow" /></svg>

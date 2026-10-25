@@ -8,6 +8,7 @@ import {
 import type { GameState } from '../../shared/types.js';
 import { element } from '../dom.js';
 import { money, multiplier } from '../format.js';
+import { getFlightEnding } from '../flight-model.js';
 export function renderGame(state: GameState | null): void {
   const round = state?.round;
   const active = round?.status === 'active';
@@ -85,12 +86,28 @@ export function renderGame(state: GameState | null): void {
     : round && round.mode !== 'normal'
       ? 'MODE NOT RECORDED'
       : `${TARGET_RTP_PERCENT}% RTP`;
-  element('#pop-chance').textContent =
-    chance === null ? '—' : `${(chance * 100).toFixed(2)}%`;
+  const chanceText = chance === null ? '—' : `${(chance * 100).toFixed(2)}%`;
+  element('#pop-chance').textContent = chanceText;
   element('#risk-caption').textContent =
-    round && !active ? 'Round complete' : 'Keep an eye on the pressure';
-  element('#risk-fill').style.width =
-    `${Math.min(100, ((chance ?? 0) / (getNextPopProbability(MAX_PUMPS - 1, active ? curveVersion : CURRENT_CURVE_VERSION) ?? 1)) * 100)}%`;
+    round && !active
+      ? 'Round complete'
+      : poppingDisabled
+        ? 'Testing · popping disabled'
+        : 'Chance of popping on your next pump.';
+  // Use a true 0–100% scale rather than stretching the curve's maximum to 100%.
+  element('#risk-fill').style.width = `${(chance ?? 0) * 100}%`;
+  element('#risk-gauge').setAttribute(
+    'aria-valuenow',
+    ((chance ?? 0) * 100).toFixed(2),
+  );
+  element('#risk-gauge').setAttribute(
+    'aria-valuetext',
+    chance === null ? 'Round complete' : chanceText,
+  );
+  element('.risk-card').classList.toggle(
+    'is-complete',
+    Boolean(round && !active),
+  );
 
   let status = 'Your next adventure starts here.';
   let hint = 'Every great flight starts on the ground.';
@@ -122,11 +139,13 @@ export function renderGame(state: GameState | null): void {
         ? 'This was a testing round. Its pop outcome was overridden.'
         : 'Testing mode: new flights have popping disabled.'
     : active
-      ? 'Every pump lifts you higher. Risk grows along the climb. The cash-out amount includes your stake.'
-      : 'A new view with every pump. Cash out before the balloon pops to keep your payout.';
+      ? 'Each pump increases risk. Cash out to collect your payout, including your stake.'
+      : 'A new view with every pump. Cash out before the balloon pops to collect your payout.';
 
   element('#result-banner').hidden = !round || active;
   if (round && !active) {
+    const ending = getFlightEnding(round);
+    element('#result-banner').dataset.kind = ending ?? '';
     element('#result-label').textContent = popped
       ? 'FLIGHT ENDED'
       : round.settlementReason === 'limit'
@@ -136,13 +155,25 @@ export function renderGame(state: GameState | null): void {
       ? 'Balloon popped'
       : money(round.payoutCents);
     element('#result-caption').textContent = popped
-      ? `${money(round.betCents)} stake lost. Start fresh whenever you’re ready.`
+      ? state?.wallet.refillCents
+        ? `${money(round.betCents)} stake lost. Demo balance reset to ${money(state.wallet.refillCents)}.`
+        : `${money(round.betCents)} stake lost. Start fresh whenever you’re ready.`
       : round.settlementReason === 'limit'
         ? 'The Astral Crown. You reached the very top.'
         : 'A beautiful place to call it.';
     element<SVGUseElement>('#result-icon use').setAttribute(
       'href',
-      popped ? '#icon-wind' : '#icon-check',
+      ending === 'pop'
+        ? '#icon-burst'
+        : ending === 'summit'
+          ? '#icon-crown'
+          : '#icon-check',
     );
+    element('#result-pumps').textContent = `${pumps} / ${MAX_PUMPS}`;
+    element('#result-multiplier-label').textContent = popped
+      ? 'BEST MULTIPLIER'
+      : 'LOCKED AT';
+    element('#result-multiplier').textContent =
+      `${multiplier(getStep(popped ? Math.max(0, pumps - 1) : pumps, curveVersion).multiplierMicros)}×`;
   }
 }

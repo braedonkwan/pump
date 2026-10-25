@@ -1,7 +1,9 @@
 import type { RoundView } from '../shared/types.js';
 import { MAX_PUMPS } from '../shared/settings.js';
+import type { GameAudio } from './audio.js';
 import {
   FLIGHT_ZONES,
+  getFlightEnding,
   getFlightZone,
   getWorldAtmosphere,
 } from './flight-model.js';
@@ -19,6 +21,7 @@ export class FlightWorld {
   private readonly segments: HTMLElement[] = [];
   private readonly landmarks: HTMLElement[] = [];
   private readonly environmentName: HTMLElement;
+  private readonly environmentSymbol: SVGUseElement;
   private readonly coordinate: HTMLElement;
   private readonly altimeter: HTMLElement;
   private readonly caption: HTMLElement | null;
@@ -27,15 +30,17 @@ export class FlightWorld {
 
   constructor(
     private readonly root: HTMLElement,
+    audio: GameAudio,
     onSettlementChange: () => void = () => {},
   ) {
     this.balloon = find(root, '#balloon');
     this.environmentName = find(root, '#environment-name');
+    this.environmentSymbol = find(root, '#environment-symbol');
     this.coordinate = find(root, '#world-coordinate');
     this.altimeter = find(root, '#altimeter');
     this.caption = document.querySelector('#journey-caption');
     this.geometry = new WorldGeometry(root);
-    this.effects = new WorldEffects(root, onSettlementChange);
+    this.effects = new WorldEffects(root, audio, onSettlementChange);
     this.camera = new WorldCamera(root, this.geometry, (view) =>
       this.effects.updateView(view),
     );
@@ -57,7 +62,7 @@ export class FlightWorld {
     }
 
     this.geometry.observe(() => {
-      if (this.initialized) this.camera.move(this.round?.pumps ?? 0, true);
+      if (this.initialized) this.camera.resize(this.round?.pumps ?? 0);
     });
   }
 
@@ -86,10 +91,10 @@ export class FlightWorld {
     const pumps = round?.pumps ?? 0;
     const zone = getFlightZone(pumps);
     const atmosphere = getWorldAtmosphere(pumps);
-    const reachedSummit =
-      round?.status === 'cashed_out' &&
-      round.settlementReason === 'limit' &&
-      pumps === MAX_PUMPS;
+    const ending = getFlightEnding(round);
+    const reachedSummit = ending === 'summit';
+    if (ending) this.root.dataset.ending = ending;
+    else delete this.root.dataset.ending;
     this.root.dataset.status = round?.status ?? 'ready';
     this.root.dataset.zone = String(zone.index);
     this.root.dataset.environment = zone.id;
@@ -100,10 +105,11 @@ export class FlightWorld {
     this.root.style.setProperty('--wonder', String(atmosphere.wonder));
     this.root.style.setProperty('--crown-glow', String(atmosphere.crownGlow));
     this.root.style.setProperty('--ascent', String(pumps / MAX_PUMPS));
+    this.root.style.setProperty('--biome-accent', zone.color);
     this.root.style.setProperty('--sway-duration', `${5 - pumps * 0.09}s`);
     this.balloon.style.setProperty(
       '--balloon-scale',
-      String(0.72 + pumps * 0.018),
+      String(0.8 + pumps * 0.016),
     );
     this.balloon.setAttribute(
       'aria-label',
@@ -112,6 +118,7 @@ export class FlightWorld {
         : `Balloon after ${pumps} pumps`,
     );
     this.environmentName.textContent = zone.name;
+    this.environmentSymbol.setAttribute('href', `#icon-${zone.icon}`);
     this.coordinate.textContent = `WORLD ${String(zone.index + 1).padStart(2, '0')} / ${String(FLIGHT_ZONES.length).padStart(2, '0')}`;
     this.altimeter.setAttribute('aria-valuenow', String(pumps));
     this.altimeter.setAttribute(
@@ -137,7 +144,11 @@ export class FlightWorld {
     this.camera.move(pumps, instant || !wasInitialized || changedRound);
 
     if (wasInitialized && !instant) {
-      if (pumped) this.effects.pump();
+      if (pumped && round?.status === 'active') {
+        this.effects.pump(round);
+        if (getFlightZone(previous?.pumps ?? 0).id !== zone.id)
+          this.effects.enterBiome(zone);
+      }
       if (settled && round) this.effects.settle(round);
     }
   }

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import { resolve } from 'node:path';
 import { test, type TestContext } from 'node:test';
 import type { AddressInfo } from 'node:net';
 import type { GameState } from '../src/shared/types.js';
@@ -11,13 +12,17 @@ import { seedForPop } from './helpers.js';
 
 async function fixture(
   context: TestContext,
-  options: { testMode?: boolean; cookieName?: string } = {},
+  options: {
+    testMode?: boolean;
+    cookieName?: string;
+    clientDirectory?: string;
+  } = {},
 ) {
   const database = openDatabase(':memory:');
   const service = new PumpService(database, (id) => seedForPop(id, 2), {
     disablePopping: options.testMode ?? false,
   });
-  const server = createApp(service, undefined, {
+  const server = createApp(service, options.clientDirectory, {
     sessionCookieName: options.cookieName,
   });
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -75,6 +80,25 @@ test('HTTP session, required endpoints, proof secrecy, and refresh recovery work
     start.round!.serverSeedHash,
   );
   assert.equal(end.history.length, 1);
+});
+
+test('production serves supplied sound assets with audio content types', async (context) => {
+  const { get } = await fixture(context, {
+    clientDirectory: resolve('src/client/public'),
+  });
+  for (const [name, type, signature] of [
+    ['background-music.ogg', 'audio/ogg', 'OggS'],
+    ['balloon-inflate.ogg', 'audio/ogg', 'OggS'],
+    ['balloon-pop.ogg', 'audio/ogg', 'OggS'],
+    ['top-reached.ogg', 'audio/ogg', 'OggS'],
+    ['cash-out.wav', 'audio/wav', 'RIFF'],
+  ]) {
+    const response = await get(`/audio/${name}`);
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('content-type'), type);
+    const bytes = Buffer.from(await response.arrayBuffer());
+    assert.equal(bytes.subarray(0, 4).toString(), signature);
+  }
 });
 
 test('normal and testing sessions retain separate wallets and rounds on the same host', async (context) => {

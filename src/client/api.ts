@@ -1,9 +1,19 @@
-import type { GameState } from '../shared/types.js';
+import type { GameState, RoomState } from '../shared/types.js';
 
 const REQUEST_TIMEOUT_MS = 10_000;
 export type GameRequest = (path: string, body?: object) => Promise<GameState>;
 
-export const requestGameState: GameRequest = async (path, body) => {
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
+async function request(path: string, body?: object): Promise<unknown> {
   const response = await fetch(`/api${path}`, {
     method: body ? 'POST' : 'GET',
     headers: body ? { 'Content-Type': 'application/json' } : {},
@@ -16,7 +26,14 @@ export const requestGameState: GameRequest = async (path, body) => {
       typeof value === 'object' && value !== null && 'error' in value
         ? String(value.error)
         : 'Could not complete that request.';
-    throw new Error(message);
+    throw new ApiError(message, response.status);
   }
-  return value as GameState;
-};
+  return value;
+}
+
+export const requestGameState: GameRequest = async (path, body) =>
+  (await request(path, body)) as GameState;
+
+export async function requestPresence(): Promise<RoomState> {
+  return (await request('/pump/heartbeat', {})) as RoomState;
+}

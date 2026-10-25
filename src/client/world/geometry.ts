@@ -9,7 +9,6 @@ type Scene = ReturnType<typeof getBackdropSegments>[number];
 interface Backdrop {
   element: HTMLElement;
   image: HTMLImageElement;
-  source: HTMLSourceElement | null;
   scene: Scene;
   requested: boolean;
 }
@@ -84,30 +83,19 @@ export class WorldGeometry {
       image.height = 1024;
       image.decoding = 'async';
       image.fetchPriority = index === 0 ? 'high' : 'low';
-      // Retries and responsive source changes can reload this same element.
+      // Keep this listener active when a failed image is retried.
       image.addEventListener('load', () => backdrop.classList.add('is-loaded'));
-      let source: HTMLSourceElement | null = null;
-      if (segment.mobileSrc) {
-        const picture = document.createElement('picture');
-        source = document.createElement('source');
-        source.media = '(max-width: 760px)';
-        picture.append(source, image);
-        backdrop.append(picture);
-      } else {
-        backdrop.append(image);
-      }
+      backdrop.append(image);
       container.append(backdrop);
       const entry = {
         element: backdrop,
         image,
-        source,
         scene: segment,
         requested: false,
       };
       image.addEventListener('error', () => {
         entry.requested = false;
         image.removeAttribute('src');
-        source?.removeAttribute('srcset');
         backdrop.classList.remove('is-loaded');
       });
       this.backdrops.push(entry);
@@ -120,8 +108,6 @@ export class WorldGeometry {
     backdrop.image.fetchPriority = visible ? 'high' : 'low';
     if (backdrop.requested) return;
     backdrop.requested = true;
-    if (backdrop.source && backdrop.scene.mobileSrc)
-      backdrop.source.srcset = backdrop.scene.mobileSrc;
     backdrop.image.src = backdrop.scene.src;
   }
 }

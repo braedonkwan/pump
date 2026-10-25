@@ -9,3 +9,7 @@ data/
 !.env.example
 coverage/
 test-results/
+.wrangler/
+.dev.vars
+.dev.vars.*
+DEPLOYMENT.md

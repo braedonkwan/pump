@@ -1,6 +1,7 @@
 import { MAX_PUMPS } from '../../shared/settings.js';
 import type { WorldGeometry } from './geometry.js';
-const CAMERA_DURATION_MS = 1050;
+import { FLIGHT_TIMING } from '../flight-timing.js';
+const CAMERA_DURATION_MS = FLIGHT_TIMING.pumpMs;
 const CAMERA_SETTLE_MS = CAMERA_DURATION_MS + 50;
 export interface CameraView {
   worldHeight: number;
@@ -23,6 +24,12 @@ export class WorldCamera {
   ) {
     root.style.setProperty('--camera-duration', `${CAMERA_DURATION_MS}ms`);
   }
+
+  resize(pumps: number): void {
+    // Settlement can resize the panel while the final ascent is still running.
+    this.move(pumps, this.activityTimer === undefined);
+  }
+
   move(pumps: number, instant: boolean): void {
     const { width, height, maxOffset, map } = this.geometry;
     if (!width || !height) return;
@@ -59,8 +66,10 @@ export class WorldCamera {
       });
     updateView();
     clearTimeout(this.activityTimer);
+    this.activityTimer = undefined;
     if (!instant)
       this.activityTimer = setTimeout(() => {
+        this.activityTimer = undefined;
         this.motionBottom = this.cameraOffset;
         this.recentOffsets = [];
         updateView();

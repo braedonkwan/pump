@@ -8,12 +8,49 @@ import {
   getFlightZone,
   getWorldLayout,
   getWorldAtmosphere,
+  getFlightEnding,
 } from '../src/client/flight-model.js';
+
+test('only a surviving final pump receives the summit presentation', () => {
+  assert.equal(getFlightEnding(null), null);
+  assert.equal(
+    getFlightEnding({ status: 'active', pumps: 24, settlementReason: null }),
+    null,
+  );
+  assert.equal(
+    getFlightEnding({
+      status: 'cashed_out',
+      pumps: 0,
+      settlementReason: 'cashout',
+    }),
+    'cashout',
+  );
+  assert.equal(
+    getFlightEnding({
+      status: 'cashed_out',
+      pumps: 24,
+      settlementReason: 'cashout',
+    }),
+    'cashout',
+  );
+  assert.equal(
+    getFlightEnding({
+      status: 'cashed_out',
+      pumps: 25,
+      settlementReason: 'limit',
+    }),
+    'summit',
+  );
+  assert.equal(
+    getFlightEnding({ status: 'popped', pumps: 25, settlementReason: 'pop' }),
+    'pop',
+  );
+});
 
 test('the flight starts at the very bottom and reaches the exact top on pump 25', () => {
   for (const [width, height] of [
     [950, 630],
-    [350, 500],
+    [650, 630],
     [1200, 700],
   ]) {
     const start = getWorldLayout(width!, height!, 0);
@@ -38,12 +75,12 @@ test('each confirmed pump moves the camera upward by one of 25 equal steps', () 
 
 test('restoring a round or resizing derives the same relative position from its pump count', () => {
   const desktop = getWorldLayout(1000, 620, 17);
-  const mobile = getWorldLayout(360, 500, 17);
+  const resized = getWorldLayout(650, 630, 17);
   assert.equal(desktop.progress, 17 / 25);
-  assert.equal(mobile.progress, desktop.progress);
+  assert.equal(resized.progress, desktop.progress);
   assert.deepEqual(getWorldLayout(1000, 620, 17), desktop);
   assert.ok(
-    Math.abs(mobile.offset / mobile.maxOffset - desktop.progress) < 1e-12,
+    Math.abs(resized.offset / resized.maxOffset - desktop.progress) < 1e-12,
   );
 });
 
@@ -133,7 +170,7 @@ test('atmosphere grows richer on every pump and summit light appears only near t
 test('starting on the ground requests only the first two backdrop images', () => {
   for (const [width, height] of [
     [1012, 680],
-    [342, 530],
+    [650, 630],
     [1800, 680],
   ]) {
     assert.deepEqual(
@@ -146,7 +183,7 @@ test('starting on the ground requests only the first two backdrop images', () =>
 test('the backdrop window covers every visible blend and preloads two pump movements ahead', () => {
   for (const [width, height] of [
     [1012, 680],
-    [342, 530],
+    [650, 630],
     [1800, 680],
   ]) {
     for (let pumps = 0; pumps <= 25; pumps++) {

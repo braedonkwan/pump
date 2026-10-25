@@ -17,6 +17,8 @@ const MIME_TYPES: Record<string, string> = {
   '.woff2': 'font/woff2',
   '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon',
+  '.ogg': 'audio/ogg',
+  '.wav': 'audio/wav',
 };
 
 async function readBody(
