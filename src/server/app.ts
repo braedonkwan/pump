@@ -62,7 +62,9 @@ function sendJson(
 export function createApp(
   service: PumpService,
   clientDirectory = resolve('dist/client'),
+  options: { sessionCookieName?: string } = {},
 ) {
+  const cookieName = options.sessionCookieName ?? 'pump_session';
   async function handle(
     request: IncomingMessage,
     response: ServerResponse,
@@ -145,14 +147,14 @@ export function createApp(
     const cookie = request.headers.cookie
       ?.split(';')
       .map((part) => part.trim())
-      .find((part) => part.startsWith('pump_session='))
-      ?.slice('pump_session='.length);
+      .find((part) => part.startsWith(`${cookieName}=`))
+      ?.slice(cookieName.length + 1);
     const { playerId, newToken } = service.getSession(cookie);
     if (newToken) {
       const secure = process.env.COOKIE_SECURE === 'true' ? '; Secure' : '';
       response.setHeader(
         'Set-Cookie',
-        `pump_session=${newToken}; Path=/; HttpOnly; SameSite=Strict; Max-Age=31536000${secure}`,
+        `${cookieName}=${newToken}; Path=/; HttpOnly; SameSite=Strict; Max-Age=31536000${secure}`,
       );
     }
 

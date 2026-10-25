@@ -36,6 +36,16 @@ test('the three eight-frame sprite atlases retain alpha and square frame geometr
     const image = readPng(`/art/sprites/${atlas}.png`);
     assert.equal(image.colorType, 6, `${atlas} must retain PNG transparency`);
     assert.equal(
+      image.width % 4,
+      0,
+      `${atlas} columns must have whole-pixel widths`,
+    );
+    assert.equal(
+      image.height % 2,
+      0,
+      `${atlas} rows must have whole-pixel heights`,
+    );
+    assert.equal(
       image.width / 4,
       image.height / 2,
       `${atlas} must have square frames`,

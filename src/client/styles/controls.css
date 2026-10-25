@@ -1,0 +1,518 @@
+.controls-panel {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #ffffff0d;
+  border-radius: var(--radius);
+  background: linear-gradient(155deg, #171e2b, #121823);
+  padding: 24px;
+  min-width: 0;
+}
+.controls-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 27px;
+}
+.controls-heading h2 {
+  font-family: 'Manrope', sans-serif;
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: -0.3px;
+}
+.manual-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid #ffffff0b;
+  background: #ffffff03;
+  border-radius: 4px;
+  color: #8d98ac;
+  font-size: 6px;
+  letter-spacing: 0.8px;
+  padding: 5px 6px;
+}
+.manual-badge i {
+  width: 3px;
+  height: 3px;
+  background: #8a9b96;
+  box-shadow: none;
+}
+label[for='bet'] {
+  display: block;
+  color: #a8b2c7;
+  font-size: 12px;
+  margin-bottom: 9px;
+  font-weight: 500;
+}
+.bet-field {
+  display: flex;
+  align-items: center;
+  padding: 14px 12px;
+  border: 1px solid #ffffff17;
+  border-radius: 8px;
+  background: #0d131f;
+  gap: 9px;
+  box-shadow: inset 0 1px 3px #00000015;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+.bet-field:focus-within {
+  border-color: #9bf2d175;
+  box-shadow: 0 0 0 3px #9bf2d108;
+}
+.bet-currency {
+  color: #78849b;
+  font-size: 17px;
+}
+.bet-field input {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  background: transparent;
+  color: #f4f7ff;
+  border: 0;
+  font-family: 'Manrope', sans-serif;
+  font-size: 21px;
+  letter-spacing: -0.6px;
+  font-weight: 650;
+  outline: none;
+}
+.bet-field input:disabled {
+  opacity: 0.6;
+}
+.input-currency {
+  font-size: 8px;
+  letter-spacing: 0.5px;
+  color: #5f6c85;
+  background: #1a2331;
+  padding: 4px 5px;
+  border-radius: 3px;
+}
+.field-help {
+  color: #8390a7;
+  font-size: 10px;
+  margin-top: 9px;
+}
+.field-help > span:not([data-min-bet], [data-max-bet], [data-bet-step]) {
+  padding: 0 5px;
+  color: #35425c;
+}
+.primary-button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 17px 16px;
+  background: linear-gradient(120deg, #b2f8dc, #89eac6);
+  color: #103c2c;
+  border: 1px solid #c3ffe17d;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow:
+    0 3px 0 #36635055,
+    inset 0 1px #ffffff60,
+    0 4px 22px #9bf2d10b;
+  transition:
+    filter 0.2s,
+    transform 0.2s,
+    box-shadow 0.2s;
+}
+.primary-button:hover:enabled {
+  filter: brightness(1.07);
+  transform: translateY(-1px);
+  box-shadow:
+    0 4px 0 #36635055,
+    0 7px 25px #9bf2d11a;
+}
+.primary-button:active:enabled {
+  transform: translateY(1px);
+  box-shadow: 0 1px 0 #36635055;
+}
+.primary-button:disabled {
+  opacity: 0.5;
+  filter: saturate(0.5);
+  box-shadow: none;
+}
+.primary-button .icon {
+  width: 19px;
+  height: 19px;
+  stroke-width: 1.8;
+}
+#start-button {
+  margin-top: 20px;
+}
+.round-actions {
+  display: grid;
+  gap: 9px;
+  margin-top: 20px;
+}
+.pump-button > span {
+  display: grid;
+  gap: 4px;
+  text-align: left;
+}
+.pump-button small {
+  color: #315b49;
+  font-size: 8px;
+  font-weight: 500;
+}
+.cashout-button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  background: #9bf2d10b;
+  border: 1px solid #9bf2d12c;
+  color: #b5edda;
+  padding: 14px 13px;
+  font-size: 11px;
+  border-radius: 8px;
+  transition:
+    background 0.2s,
+    border-color 0.2s;
+}
+.cashout-button > strong {
+  margin-left: auto;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.cashout-button > .icon {
+  width: 12px;
+  height: 12px;
+  color: #9bf2d175;
+}
+.cashout-button:hover:enabled {
+  background: #9bf2d118;
+  border-color: #9bf2d155;
+}
+.cashout-button:disabled {
+  opacity: 0.4;
+}
+.payout-card {
+  container-type: inline-size;
+  padding: 17px 15px 15px;
+  border: 1px solid #9bf2d119;
+  border-radius: 9px;
+  background: linear-gradient(130deg, #1c333140, #1c2e2c15);
+  margin-top: 25px;
+}
+.payout-card-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.payout-card .overline {
+  font-size: 7px;
+  letter-spacing: 1.3px;
+  color: #8faeaa;
+}
+.payout-card .icon {
+  width: 13px;
+  height: 13px;
+  color: #7cb5a08c;
+}
+.payout-card > strong {
+  display: block;
+  font-family: 'Manrope', sans-serif;
+  font-size: clamp(14px, calc(160cqw / var(--amount-length, 7)), 31px);
+  letter-spacing: -1px;
+  font-weight: 700;
+  color: #e8fff6;
+  margin-top: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.payout-card-detail {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+  min-height: 11px;
+}
+.payout-card-detail > span {
+  font-size: 10px;
+  color: #8eada8;
+}
+#net-return {
+  color: #97d2b9;
+  white-space: nowrap;
+}
+#net-return.is-negative {
+  color: #bba09a;
+}
+.risk-card {
+  margin-top: 23px;
+  padding-top: 23px;
+  border-top: 1px solid #ffffff0a;
+}
+.risk-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #a2adc2;
+}
+.risk-heading > strong {
+  font-size: 13px;
+  color: #e3ac93;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.risk-track {
+  height: 4px;
+  background: #2b2c38;
+  border-radius: 4px;
+  margin: 12px 0 9px;
+  overflow: hidden;
+}
+#risk-fill {
+  height: 100%;
+  width: 10%;
+  background: linear-gradient(90deg, #d5bd95, #f18d83);
+  box-shadow: 0 0 12px #eb8e8940;
+  border-radius: inherit;
+  transition: width 0.5s;
+}
+.risk-scale {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 5px;
+  color: #8291a9;
+  font-size: 9px;
+}
+.risk-scale .icon {
+  width: 11px;
+  height: 11px;
+}
+.flight-note {
+  display: flex;
+  gap: 10px;
+  margin-top: 27px;
+}
+.flight-note-icon {
+  color: #5a716f;
+  padding-top: 2px;
+}
+.flight-note-icon .icon {
+  width: 16px;
+  height: 16px;
+}
+.flight-note > p {
+  font-size: 11px;
+  line-height: 1.85;
+  color: #8391a8;
+}
+.message {
+  font-size: 10px;
+  line-height: 1.7;
+  color: #efb3a5;
+  margin-top: 16px;
+}
+.message:empty {
+  display: none;
+}
+.reconnect-button {
+  background: none;
+  border: 0;
+  padding: 5px 0;
+  text-align: left;
+  color: var(--mint);
+  text-decoration: underline;
+  font-size: 10px;
+  margin-top: 5px;
+}
+.controls-footer {
+  display: flex;
+  gap: 7px;
+  justify-content: center;
+  align-items: center;
+  color: #48576e;
+  font-size: 8px;
+  margin-top: auto;
+  padding-top: 25px;
+}
+.controls-footer .icon {
+  width: 12px;
+  height: 12px;
+  color: #5b7c70;
+}
+@media (min-width: 1550px) {
+  .controls-panel {
+    padding: 27px;
+  }
+  .controls-heading h2 {
+    font-size: 15px;
+  }
+}
+@media (max-width: 1150px) {
+  .controls-panel {
+    padding: 20px;
+  }
+}
+@media (max-width: 900px) {
+  .controls-panel {
+    padding: 18px;
+  }
+  .controls-heading h2 {
+    font-size: 12px;
+  }
+}
+@media (max-width: 760px) {
+  .controls-panel {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    padding: 19px;
+    gap: 18px 16px;
+  }
+  .controls-heading {
+    grid-column: 1 / -1;
+    margin-bottom: 0;
+  }
+  .controls-heading h2 {
+    font-size: 14px;
+  }
+  .manual-badge {
+    font-size: 6px;
+  }
+  #bet-form {
+    grid-column: 1;
+    grid-row: 2 / 4;
+  }
+  .bet-field {
+    padding: 11px;
+  }
+  .bet-field input {
+    font-size: 19px;
+  }
+  .field-help {
+    font-size: 7px;
+  }
+  .field-help > span:not([data-min-bet], [data-max-bet], [data-bet-step]) {
+    padding: 0 3px;
+  }
+  #start-button {
+    margin-top: 14px;
+    padding: 14px 10px;
+    gap: 5px;
+    font-size: 10px;
+  }
+  .payout-card {
+    margin-top: 0;
+    padding: 14px 12px;
+    grid-column: 2;
+    grid-row: 2;
+    align-self: start;
+  }
+  .payout-card > strong {
+    font-size: clamp(14px, calc(160cqw / var(--amount-length, 7)), 27px);
+  }
+  .payout-card .overline {
+    font-size: 6px;
+    letter-spacing: 1px;
+  }
+  .payout-card-heading .icon {
+    display: none;
+  }
+  .payout-card-detail {
+    display: grid;
+    gap: 5px;
+  }
+  .payout-card-detail > span {
+    font-size: 7px;
+  }
+  .risk-card {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    grid-column: 2;
+    grid-row: 3;
+  }
+  .risk-heading {
+    font-size: 8px;
+    gap: 5px;
+  }
+  .risk-heading > strong {
+    font-size: 10px;
+  }
+  .risk-track {
+    margin-top: 9px;
+  }
+  .risk-scale {
+    display: none;
+  }
+  .flight-note {
+    grid-column: 1 / -1;
+    margin-top: 0;
+    padding-top: 14px;
+    border-top: 1px solid #ffffff09;
+  }
+  .flight-note > p {
+    font-size: 9px;
+  }
+  .controls-footer {
+    display: none;
+  }
+  .message {
+    grid-column: 1 / -1;
+    margin: 0;
+  }
+  .reconnect-button {
+    grid-column: 1 / -1;
+    margin: 0;
+  }
+  .round-actions {
+    grid-column: 1;
+    grid-row: 4;
+    margin: 0;
+  }
+  body.has-active-round .round-actions {
+    position: fixed;
+    z-index: 20;
+    bottom: max(10px, env(safe-area-inset-bottom));
+    left: 12px;
+    right: 12px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 8px;
+    border: 1px solid #ffffff17;
+    border-radius: 13px;
+    background: #121a2bea;
+    box-shadow: 0 4px 30px #0008;
+    backdrop-filter: blur(20px);
+  }
+  body.has-active-round {
+    padding-bottom: 88px;
+  }
+  body.has-active-round .round-actions .primary-button {
+    padding: 12px 13px;
+    font-size: 11px;
+  }
+  body.has-active-round .round-actions .cashout-button {
+    padding: 12px;
+    font-size: 10px;
+    gap: 4px;
+  }
+  body.has-active-round .cashout-button > strong {
+    font-size: 12px;
+  }
+  body.has-active-round .cashout-button > .icon {
+    display: none;
+  }
+}
+@media (max-width: 380px) {
+  .controls-panel {
+    gap: 14px 12px;
+    padding: 16px;
+  }
+  .input-currency {
+    display: none;
+  }
+}

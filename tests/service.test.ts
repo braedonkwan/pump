@@ -70,7 +70,7 @@ test('invalid and unaffordable bets cannot create a round or change the balance'
     () => service.start(playerId, { betCents: 1_000, requestId: randomUUID() }),
     conflict,
   );
-  for (const betCents of [9, 100_001, 10.5, NaN]) {
+  for (const betCents of [9, 11, 13, 99, 101, 100_001, 10.5, NaN]) {
     assert.throws(
       () => service.start(playerId, { betCents, requestId: randomUUID() }),
       GameError,
@@ -158,7 +158,7 @@ test('a successful cashout prevents a competing pump', (context) => {
   const request = { roundId: round.id, expectedVersion: 0 };
   service.cashout(playerId, request);
   assert.throws(() => service.pump(playerId, request), conflict);
-  assert.equal(service.getWallet(playerId).balanceCents, 999_970);
+  assert.equal(service.getWallet(playerId).balanceCents, 1_000_000);
 });
 
 test('popping loses the bet and settles without a wallet credit', (context) => {
@@ -201,26 +201,33 @@ test('the 25th surviving pump pays automatically once and rejects a racing casho
   );
 });
 
-test('the testing override makes existing and new rounds safe without changing payouts or normal mode', (context) => {
+test('a round keeps its recorded rules when the server default changes', (context) => {
   const { database, service, playerId, start } = fixture(context, 1);
-  let round = start().round!;
   const testingService = new PumpService(database, (id) => seedForPop(id, 1), {
     disablePopping: true,
   });
+  let round = testingService.start(playerId, {
+    betCents: 1000,
+    requestId: randomUUID(),
+  }).round!;
+  assert.equal(round.mode, 'testing');
   assert.equal(testingService.getState(playerId).poppingDisabled, true);
-  assert.equal(testingService.getState(playerId).round?.nextPopProbability, 0);
+  assert.equal(service.getState(playerId).poppingDisabled, false);
+  assert.equal(service.getState(playerId).round?.nextPopProbability, 0);
 
   for (let pump = 1; pump <= 25; pump++) {
-    round = testingService.pump(playerId, {
+    round = service.pump(playerId, {
       roundId: round.id,
       expectedVersion: round.version,
     }).round!;
     assert.equal(round.status, pump === 25 ? 'cashed_out' : 'active');
     assert.equal(round.nextPopProbability, pump === 25 ? null : 0);
+    assert.equal(round.mode, 'testing');
   }
   assert.equal(round.settlementReason, 'limit');
   assert.equal(round.payoutCents, getPayoutCents(1_000, 25));
   assert.equal(round.proof?.popAtPump, 1);
+  assert.equal(service.getHistory(playerId)[0]?.mode, 'testing');
   assert.equal(
     testingService.getWallet(playerId).balanceCents,
     999_000 + round.payoutCents,
@@ -244,10 +251,11 @@ test('the testing override makes existing and new rounds safe without changing p
   assert.equal(cashedOut.payoutCents, getPayoutCents(1_000, 1));
 
   const normalRound = start().round!;
+  assert.equal(normalRound.mode, 'normal');
   assert.equal(service.getState(playerId).poppingDisabled, false);
   assert.ok(normalRound.nextPopProbability! > 0);
   assert.equal(
-    service.pump(playerId, {
+    testingService.pump(playerId, {
       roundId: normalRound.id,
       expectedVersion: 0,
     }).round?.status,
@@ -255,28 +263,105 @@ test('the testing override makes existing and new rounds safe without changing p
   );
 });
 
-test('restoring popping after a testing round passed its pop point ends on the next pump', (context) => {
-  const { database, service, playerId, start } = fixture(context, 1);
-  const testingService = new PumpService(database, undefined, {
-    disablePopping: true,
-  });
-  let round = start().round!;
-  for (let pump = 0; pump < 3; pump++) {
-    round = testingService.pump(playerId, {
+test('testing mode survives a restart and remains attached to the revealed proof', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'pump-test-mode-'));
+  const path = join(directory, 'pump.sqlite');
+  let database = openDatabase(path);
+  try {
+    let service = new PumpService(database, (id) => seedForPop(id, 1), {
+      disablePopping: true,
+    });
+    const { playerId, newToken } = service.getSession(undefined);
+    let round = service.start(playerId, {
+      betCents: 1000,
+      requestId: randomUUID(),
+    }).round!;
+    for (let pump = 0; pump < 3; pump++)
+      round = service.pump(playerId, {
+        roundId: round.id,
+        expectedVersion: round.version,
+      }).round!;
+    database.close();
+    database = openDatabase(path);
+    service = new PumpService(database);
+    assert.equal(service.getSession(newToken).playerId, playerId);
+    assert.equal(service.getState(playerId).poppingDisabled, false);
+    assert.equal(service.getState(playerId).round?.mode, 'testing');
+    assert.equal(service.getState(playerId).round?.nextPopProbability, 0);
+    const result = service.cashout(playerId, {
       roundId: round.id,
       expectedVersion: round.version,
-    }).round!;
+    });
+    assert.equal(result.round?.mode, 'testing');
+    assert.equal(result.round.proof?.popAtPump, 1);
+    assert.equal(result.round.payoutCents, getPayoutCents(1000, 3));
+    assert.equal(result.round.nextPopProbability, null);
+    assert.equal(service.getHistory(playerId)[0]?.mode, 'testing');
+  } finally {
+    database.close();
+    for (const suffix of ['', '-wal', '-shm'])
+      if (existsSync(path + suffix)) unlinkSync(path + suffix);
+    rmdirSync(directory);
   }
-  assert.equal(round.status, 'active');
-  assert.equal(service.getState(playerId).round?.nextPopProbability, 1);
-  const result = service.pump(playerId, {
-    roundId: round.id,
-    expectedVersion: round.version,
-  });
-  assert.equal(result.round?.status, 'popped');
-  assert.equal(result.round.pumps, 4);
-  assert.equal(result.round.payoutCents, 0);
-  assert.equal(result.wallet.balanceCents, 999_000);
+});
+
+test('mode migration preserves results and identifies only provable old testing overrides', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'pump-mode-migration-'));
+  const path = join(directory, 'pump.sqlite');
+  let database = openDatabase(path);
+  try {
+    let normal = new PumpService(database, (id) => seedForPop(id, 1));
+    const testing = new PumpService(database, (id) => seedForPop(id, 1), {
+      disablePopping: true,
+    });
+    const { playerId } = normal.getSession(undefined);
+    let bypassed = testing.start(playerId, {
+      betCents: 1000,
+      requestId: randomUUID(),
+    }).round!;
+    for (let pump = 0; pump < 3; pump++)
+      bypassed = testing.pump(playerId, {
+        roundId: bypassed.id,
+        expectedVersion: bypassed.version,
+      }).round!;
+    testing.cashout(playerId, {
+      roundId: bypassed.id,
+      expectedVersion: bypassed.version,
+    });
+    const regular = normal.start(playerId, {
+      betCents: 1000,
+      requestId: randomUUID(),
+    }).round!;
+    normal.pump(playerId, { roundId: regular.id, expectedVersion: 0 });
+    const wallet = normal.getWallet(playerId);
+    database.exec('ALTER TABLE rounds DROP COLUMN mode');
+    database.close();
+    database = openDatabase(path);
+    normal = new PumpService(database);
+    assert.deepEqual(normal.getWallet(playerId), wallet);
+    const history = normal.getHistory(playerId);
+    assert.equal(
+      history.find((round) => round.id === bypassed.id)?.mode,
+      'testing',
+    );
+    assert.equal(
+      history.find((round) => round.id === regular.id)?.mode,
+      'unknown',
+    );
+    assert.equal(
+      history.find((round) => round.id === regular.id)?.status,
+      'popped',
+    );
+    assert.equal(
+      history.find((round) => round.id === bypassed.id)?.proof?.popAtPump,
+      1,
+    );
+  } finally {
+    database.close();
+    for (const suffix of ['', '-wal', '-shm'])
+      if (existsSync(path + suffix)) unlinkSync(path + suffix);
+    rmdirSync(directory);
+  }
 });
 
 test('players cannot see or mutate another player’s round', (context) => {
@@ -306,30 +391,107 @@ test('history contains only the most recent ten completed rounds', (context) => 
   );
 });
 
-test('an abandoned round and wallet survive a database close and reopen', () => {
+test('an existing round keeps its curve, proof and wallet through migration and restart', () => {
   const directory = mkdtempSync(join(tmpdir(), 'pump-test-'));
   const path = join(directory, 'pump.sqlite');
   let database = openDatabase(path);
   try {
-    let service = new PumpService(database, (id) => seedForPop(id, 2));
+    let service = new PumpService(database, (id) => seedForPop(id, 2, 1));
     const { playerId, newToken } = service.getSession(undefined);
     const round = service.start(playerId, {
       betCents: 1_000,
       requestId: randomUUID(),
     }).round!;
+    database
+      .prepare(
+        'UPDATE rounds SET curve_version = 1, pop_at_pump = 2 WHERE id = ?',
+      )
+      .run(round.id);
     const before = service.pump(playerId, {
       roundId: round.id,
       expectedVersion: 0,
     });
+    // Simulate the old schema before reopening with the new read indexes.
+    database.exec(`
+      DROP INDEX player_round_order;
+      DROP INDEX completed_round_order;
+      CREATE INDEX round_history ON rounds(player_id, created_at DESC);
+      ALTER TABLE rounds DROP COLUMN curve_version;
+    `);
     database.close();
     database = openDatabase(path);
     service = new PumpService(database);
     assert.equal(service.getSession(newToken).playerId, playerId);
     assert.deepEqual(service.getState(playerId), before);
+    const finished = service.pump(playerId, {
+      roundId: round.id,
+      expectedVersion: before.round!.version,
+    }).round!;
+    assert.equal(finished.curveVersion, 1);
+    assert.equal(finished.status, 'popped');
+    assert.equal(finished.proof?.popAtPump, 2);
+    assert.deepEqual(deriveOutcome(round.id, finished.proof!.serverSeed, 1), {
+      popAtPump: finished.proof!.popAtPump,
+      randomValueHex: finished.proof!.randomValueHex,
+    });
   } finally {
     database.close();
     for (const suffix of ['', '-wal', '-shm'])
       if (existsSync(path + suffix)) unlinkSync(path + suffix);
     rmdirSync(directory);
   }
+});
+
+test('zero-pump cashout refunds each stake exactly once without a wallet loss', (context) => {
+  const { service, playerId } = fixture(context);
+  for (const betCents of [10, 20, 100, 1000, 100_000]) {
+    const start = service.start(playerId, {
+      betCents,
+      requestId: randomUUID(),
+    });
+    assert.equal(start.round?.cashoutCents, betCents);
+    assert.equal(start.round?.multiplierMicros, 1_000_000);
+    const request = { roundId: start.round!.id, expectedVersion: 0 };
+    const result = service.cashout(playerId, request);
+    assert.equal(result.round?.payoutCents, betCents);
+    assert.equal(result.round?.multiplierMicros, 1_000_000);
+    assert.equal(result.wallet.balanceCents, 1_000_000);
+    assert.equal(
+      service.cashout(playerId, request).wallet.balanceCents,
+      1_000_000,
+    );
+  }
+});
+
+test('indexed state and history retain creation order when timestamps are identical or out of order', (context) => {
+  const { service, database, playerId, start } = fixture(context);
+  const ids: string[] = [];
+  for (let i = 0; i < 12; i++) {
+    const round = start().round!;
+    ids.push(round.id);
+    service.cashout(playerId, { roundId: round.id, expectedVersion: 0 });
+  }
+  database
+    .prepare('UPDATE rounds SET created_at = ? WHERE player_id = ?')
+    .run('2026-01-01T00:00:00.000Z', playerId);
+  database
+    .prepare('UPDATE rounds SET created_at = ? WHERE id = ?')
+    .run('2099-01-01T00:00:00.000Z', ids[0]!);
+  database
+    .prepare('UPDATE rounds SET created_at = ? WHERE id = ?')
+    .run('1900-01-01T00:00:00.000Z', ids.at(-1)!);
+  assert.deepEqual(
+    service.getHistory(playerId).map((round) => round.id),
+    ids.slice(-10).reverse(),
+  );
+  assert.equal(service.getState(playerId).round?.id, ids.at(-1));
+  const active = start().round!;
+  database
+    .prepare('UPDATE rounds SET created_at = ? WHERE id = ?')
+    .run('1800-01-01T00:00:00.000Z', active.id);
+  assert.equal(service.getState(playerId).round?.id, active.id);
+  assert.deepEqual(
+    service.getHistory(playerId).map((round) => round.id),
+    ids.slice(-10).reverse(),
+  );
 });

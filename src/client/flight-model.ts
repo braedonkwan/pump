@@ -1,4 +1,4 @@
-import { MAX_PUMPS } from '../engine/PumpEngine.js';
+import { MAX_PUMPS } from '../shared/settings.js';
 
 export const FLIGHT_ZONES = [
   {
@@ -61,11 +61,14 @@ export const FLIGHT_ZONES = [
     id: 'astral-crown',
     shortName: 'Crown',
     color: '#6b4386',
-    pump: 25,
+    pump: MAX_PUMPS,
     name: 'The Astral Crown',
     caption: 'The very top. A view like no other.',
   },
 ] as const;
+
+export const PRELOAD_PUMPS = 2;
+export const SUMMIT_EFFECTS_START_PUMP = MAX_PUMPS - 4;
 
 export const BACKDROP_OVERLAP = 0.24;
 const BACKDROP_SPAN =
@@ -91,7 +94,9 @@ export function getBackdropSegments(worldHeight: number) {
 
 function validatePumps(pumps: number): void {
   if (!Number.isInteger(pumps) || pumps < 0 || pumps > MAX_PUMPS) {
-    throw new RangeError('Flight pump count must be between 0 and 25.');
+    throw new RangeError(
+      `Flight pump count must be between 0 and ${MAX_PUMPS}.`,
+    );
   }
 }
 
@@ -108,7 +113,11 @@ export function getWorldAtmosphere(pumps: number) {
   validatePumps(pumps);
   return {
     wonder: 0.2 + 0.8 * (pumps / MAX_PUMPS) ** 1.5,
-    crownGlow: Math.max(0, (pumps - 21) / (MAX_PUMPS - 21)),
+    crownGlow: Math.max(
+      0,
+      (pumps - SUMMIT_EFFECTS_START_PUMP) /
+        (MAX_PUMPS - SUMMIT_EFFECTS_START_PUMP),
+    ),
   };
 }
 
@@ -132,4 +141,24 @@ export function getWorldLayout(width: number, height: number, pumps: number) {
   const maxOffset = worldHeight - height;
   const progress = pumps / MAX_PUMPS;
   return { worldHeight, maxOffset, offset: maxOffset * progress, progress };
+}
+
+export function getBackdropWindow(
+  width: number,
+  height: number,
+  pumps: number,
+) {
+  const layout = getWorldLayout(width, height, pumps);
+  const viewTop = layout.offset + height;
+  // Preload two pump movements ahead, including images used by overlap fades.
+  const preloadTop = viewTop + (layout.maxOffset / MAX_PUMPS) * PRELOAD_PUMPS;
+  return getBackdropSegments(layout.worldHeight)
+    .map((scene, index) => ({
+      index,
+      bottom: scene.bottom,
+      top: scene.bottom + scene.height,
+      visible:
+        scene.bottom < viewTop && scene.bottom + scene.height > layout.offset,
+    }))
+    .filter((scene) => scene.bottom < preloadTop && scene.top > layout.offset);
 }

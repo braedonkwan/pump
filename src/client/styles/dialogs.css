@@ -1,0 +1,118 @@
+.game-dialog {
+  padding: 30px;
+  background: linear-gradient(135deg, #192435, #111824);
+  border: 1px solid #ffffff18;
+  border-radius: 20px;
+  color: #e7edf8;
+  max-width: 470px;
+  width: calc(100% - 32px);
+  box-shadow: 0 25px 100px #00000080;
+  max-height: calc(100dvh - 40px);
+}
+.game-dialog::backdrop {
+  background: #020812a6;
+  backdrop-filter: blur(8px);
+}
+.dialog-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  align-items: center;
+}
+.dialog-heading .overline {
+  font-size: 8px;
+  color: #96c7b7;
+}
+.close-dialog {
+  display: grid;
+  place-items: center;
+  background: #ffffff06;
+  border: 1px solid #ffffff0d;
+  border-radius: 7px;
+  width: 29px;
+  height: 29px;
+  font-size: 20px;
+  color: #8796b0;
+}
+.close-dialog:hover {
+  background: #ffffff10;
+  color: #fff;
+}
+.game-dialog h2 {
+  font-family: 'Manrope', sans-serif;
+  font-size: 34px;
+  line-height: 1.2;
+  letter-spacing: -1.5px;
+  margin-top: 20px;
+  font-weight: 750;
+}
+.game-dialog h2 > span {
+  color: var(--mint);
+}
+.game-dialog > p {
+  font-size: 11px;
+  color: #8293ad;
+  line-height: 1.9;
+  margin-top: 15px;
+}
+.instructions {
+  list-style: none;
+  padding: 0;
+  margin: 28px 0;
+  display: grid;
+  gap: 21px;
+}
+.instructions li {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+.instructions li > span {
+  font-size: 10px;
+  color: #92d0b9;
+  border: 1px solid #9bf2d124;
+  background: #9bf2d106;
+  border-radius: 6px;
+  padding: 7px;
+}
+.instructions strong {
+  font-size: 12px;
+  color: #d5dfed;
+  font-weight: 500;
+}
+.instructions p {
+  font-size: 10px;
+  color: #798da9;
+  line-height: 1.8;
+  margin-top: 5px;
+}
+.dialog-note {
+  color: #7488a6;
+  padding: 13px;
+  border: 1px solid #ffffff07;
+  background: #050e2026;
+  border-radius: 8px;
+  font-size: 10px;
+  line-height: 1.8;
+  margin: 24px 0;
+}
+.proof-data {
+  margin: 26px 0;
+}
+.proof-data dt {
+  font-size: 9px;
+  color: #95a6bd;
+  margin: 18px 0 7px;
+}
+.proof-data dd {
+  margin: 0;
+  background: #060e1b55;
+  border: 1px solid #ffffff08;
+  border-radius: 6px;
+  padding: 10px;
+  font-family: Consolas, monospace;
+  font-size: 10px;
+  color: #a0c2ba;
+  line-height: 1.75;
+  overflow-wrap: anywhere;
+}

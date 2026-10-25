@@ -91,8 +91,10 @@
         <div class="game-badges">
           <span
             ><svg class="icon"><use href="#icon-shield" /></svg>
-            <span id="rtp-label">97% RTP</span></span
-          ><span>25 pumps to the stars</span>
+            <span id="rtp-label"
+              ><span data-rtp-percent></span>% RTP</span
+            ></span
+          ><span><span data-max-pumps></span> pumps to the stars</span>
         </div>
       </div>
 
@@ -267,7 +269,6 @@
               role="progressbar"
               aria-label="Ascent toward space"
               aria-valuemin="0"
-              aria-valuemax="25"
               aria-valuenow="0"
             >
               <span class="altimeter-top"
@@ -288,7 +289,8 @@
             <div class="scene-bottom">
               <div class="pump-counter">
                 <span class="counter-dot"></span
-                ><strong id="pump-count">00</strong><span>/ 25 PUMPS</span>
+                ><strong id="pump-count">00</strong
+                ><span>/ <span data-max-pumps></span> PUMPS</span>
               </div>
               <span class="scene-hint" id="scene-hint"
                 >Every great flight starts on the ground.</span
@@ -336,7 +338,9 @@
               /><span class="input-currency">USD</span>
             </div>
             <p class="field-help" id="bet-help">
-              Min $0.10 <span>·</span> Max $1,000.00
+              Min <span data-min-bet></span> <span>·</span> Max
+              <span data-max-bet></span>
+              <br />In <span data-bet-step></span> increments
             </p>
             <button
               class="primary-button"
@@ -377,11 +381,11 @@
           <div class="risk-card">
             <div class="risk-heading">
               <span>Next pump pop chance</span
-              ><strong id="pop-chance">4.0%</strong>
+              ><strong id="pop-chance">—</strong>
             </div>
             <div class="risk-track"><div id="risk-fill"></div></div>
             <div class="risk-scale">
-              <span>Keep an eye on the pressure</span
+              <span id="risk-caption">Keep an eye on the pressure</span
               ><svg class="icon"><use href="#icon-info" /></svg>
             </div>
           </div>
@@ -461,13 +465,20 @@
         </button>
       </div>
       <h2 id="how-to-title">From the meadow<br />to the stars<span>.</span></h2>
-      <p>25 pumps. Eight worlds. You decide how far to go.</p>
+      <p>
+        <span data-max-pumps></span> pumps. Eight worlds. You decide how far to
+        go.
+      </p>
       <ol class="instructions">
         <li>
           <span>01</span>
           <div>
             <strong>Choose your stake</strong>
-            <p>Start with a demo bet from $0.10 to $1,000.</p>
+            <p>
+              Start with a demo bet from <span data-min-bet></span> to
+              <span data-max-bet></span> in
+              <span data-bet-step></span> increments.
+            </p>
           </div>
         </li>
         <li>
@@ -476,7 +487,7 @@
             <strong>Catch a little more air</strong>
             <p>
               Every pump grows your multiplier and lifts you into a new part of
-              the world. The pop chance rises, too.
+              the world. Higher levels bring more risk.
             </p>
           </div>
         </li>
@@ -492,8 +503,11 @@
         </li>
       </ol>
       <div class="dialog-note">
-        Pump 25 cashes out automatically if you survive. Before your first pump,
-        cashing out returns 0.97× your bet. Payouts include your stake.
+        Pump <span data-max-pumps></span> cashes out automatically if you
+        survive. Before your first pump, cashing out returns your full stake.
+        After at least one pump, normal-play RTP is between
+        <span data-min-rtp></span>% and <span data-rtp-percent></span>%. Payouts
+        include your stake and round down to whole cents.
       </div>
       <button class="primary-button" data-close-dialog>
         Let’s fly <svg class="icon"><use href="#icon-arrow" /></svg>
@@ -517,6 +531,8 @@
         revealed when the round ends.
       </p>
       <dl class="proof-data">
+        <dt>Round mode</dt>
+        <dd id="proof-mode"></dd>
         <dt>Round ID</dt>
         <dd id="proof-round-id"></dd>
         <dt>SHA-256 seed commitment</dt>

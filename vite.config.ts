@@ -6,7 +6,8 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     proxy: {
-      '/api': {
+      // Keep frontend modules such as /api.ts out of the backend proxy.
+      '/api/': {
         target: 'http://127.0.0.1:3001',
         // Preserve the browser host so the API can enforce its origin check.
         changeOrigin: false,

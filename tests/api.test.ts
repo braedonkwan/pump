@@ -9,10 +9,17 @@ import { sha256 } from '../src/server/fairness.js';
 import { PumpService } from '../src/server/PumpService.js';
 import { seedForPop } from './helpers.js';
 
-async function fixture(context: TestContext) {
+async function fixture(
+  context: TestContext,
+  options: { testMode?: boolean; cookieName?: string } = {},
+) {
   const database = openDatabase(':memory:');
-  const service = new PumpService(database, (id) => seedForPop(id, 2));
-  const server = createApp(service);
+  const service = new PumpService(database, (id) => seedForPop(id, 2), {
+    disablePopping: options.testMode ?? false,
+  });
+  const server = createApp(service, undefined, {
+    sessionCookieName: options.cookieName,
+  });
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   context.after(async () => {
     await new Promise<void>((resolve, reject) => {
@@ -70,6 +77,59 @@ test('HTTP session, required endpoints, proof secrecy, and refresh recovery work
   assert.equal(end.history.length, 1);
 });
 
+test('normal and testing sessions retain separate wallets and rounds on the same host', async (context) => {
+  const normal = await fixture(context);
+  const testing = await fixture(context, {
+    testMode: true,
+    cookieName: 'pump_testing_session',
+  });
+  assert.ok(normal.cookie.startsWith('pump_session='));
+  assert.ok(testing.cookie.startsWith('pump_testing_session='));
+  const cookie = normal.cookie + '; ' + testing.cookie;
+  const post = async (base: string, path: string, body: object) => {
+    const response = await fetch(base + path, {
+      method: 'POST',
+      headers: { cookie, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    assert.equal(response.status, 200);
+    return (await response.json()) as GameState;
+  };
+  const regular = await post(normal.base, '/api/pump/start', {
+    betCents: 1000,
+    requestId: randomUUID(),
+  });
+  let testState = await post(testing.base, '/api/pump/start', {
+    betCents: 1000,
+    requestId: randomUUID(),
+  });
+  assert.equal(regular.round?.mode, 'normal');
+  assert.equal(testState.round?.mode, 'testing');
+  for (let pump = 0; pump < 3; pump++)
+    testState = await post(testing.base, '/api/pump/pump', {
+      roundId: testState.round!.id,
+      expectedVersion: testState.round!.version,
+    });
+  assert.equal(testState.round?.status, 'active');
+  assert.equal(testState.round.nextPopProbability, 0);
+  const restoredResponse = await fetch(normal.base + '/api/pump/state', {
+    headers: { cookie },
+  });
+  assert.equal(restoredResponse.headers.get('set-cookie'), null);
+  const restored = (await restoredResponse.json()) as GameState;
+  assert.equal(restored.round?.id, regular.round!.id);
+  assert.equal(restored.round.pumps, 0);
+  assert.equal(restored.wallet.balanceCents, 999000);
+  await post(testing.base, '/api/pump/cashout', {
+    roundId: testState.round.id,
+    expectedVersion: testState.round.version,
+  });
+  const stillNormal = (await (
+    await fetch(normal.base + '/api/pump/state', { headers: { cookie } })
+  ).json()) as GameState;
+  assert.deepEqual(stillNormal, restored);
+});
+
 test('concurrent HTTP Pump and Cash Out requests cannot both succeed', async (context) => {
   const { post } = await fixture(context);
   const start = (await (
@@ -99,13 +159,13 @@ test('concurrent HTTP cashouts return the same settlement without paying twice',
   for (const response of responses) assert.equal(response.status, 200);
   assert.deepEqual(await responses[0]!.json(), await responses[1]!.json());
   assert.deepEqual(await (await get('/api/wallet')).json(), {
-    balanceCents: 999_970,
+    balanceCents: 1_000_000,
   });
 });
 
 test('HTTP input validation rejects malformed payloads and cross-origin mutations', async (context) => {
   const { base, cookie, post } = await fixture(context);
-  for (const betCents of ['100', 9, 10.2, null]) {
+  for (const betCents of ['100', 9, 11, 13, 99, 101, 10.2, null]) {
     assert.equal(
       (await post('/api/pump/start', { betCents, requestId: randomUUID() }))
         .status,

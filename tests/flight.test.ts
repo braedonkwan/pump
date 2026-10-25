@@ -4,6 +4,7 @@ import {
   BACKDROP_OVERLAP,
   FLIGHT_ZONES,
   getBackdropSegments,
+  getBackdropWindow,
   getFlightZone,
   getWorldLayout,
   getWorldAtmosphere,
@@ -127,4 +128,54 @@ test('atmosphere grows richer on every pump and summit light appears only near t
   assert.equal(getWorldAtmosphere(25).crownGlow, 1);
   for (const pump of [-1, 26, 1.5, NaN])
     assert.throws(() => getWorldAtmosphere(pump), RangeError);
+});
+
+test('starting on the ground requests only the first two backdrop images', () => {
+  for (const [width, height] of [
+    [1012, 680],
+    [342, 530],
+    [1800, 680],
+  ]) {
+    assert.deepEqual(
+      getBackdropWindow(width!, height!, 0).map((scene) => scene.index),
+      [0, 1],
+    );
+  }
+});
+
+test('the backdrop window covers every visible blend and preloads two pump movements ahead', () => {
+  for (const [width, height] of [
+    [1012, 680],
+    [342, 530],
+    [1800, 680],
+  ]) {
+    for (let pumps = 0; pumps <= 25; pumps++) {
+      const requested = new Set(
+        getBackdropWindow(width!, height!, pumps).map((scene) => scene.index),
+      );
+      for (let next = pumps; next <= Math.min(25, pumps + 2); next++) {
+        const layout = getWorldLayout(width!, height!, next);
+        getBackdropSegments(layout.worldHeight).forEach((scene, index) => {
+          if (
+            scene.bottom < layout.offset + height! &&
+            scene.bottom + scene.height > layout.offset
+          ) {
+            assert.ok(
+              requested.has(index),
+              `Missing scene ${index} at pump ${next}, preloaded at ${pumps}`,
+            );
+          }
+        });
+      }
+    }
+  }
+});
+
+test('restoring an elevated flight requests nearby artwork without downloading the ground', () => {
+  for (const pumps of [12, 20, 25]) {
+    const scenes = getBackdropWindow(1012, 680, pumps);
+    assert.ok(scenes.length < FLIGHT_ZONES.length);
+    assert.ok(scenes.every((scene) => scene.index > 0));
+    assert.ok(scenes.some((scene) => scene.visible));
+  }
 });
